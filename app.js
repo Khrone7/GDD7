@@ -18,9 +18,9 @@ const canvas = document.getElementById("canvas");
 /* ------------------------------
    MENU REPLIABLE
 --------------------------------*/
-toggleMenu.onclick = () => {
+toggleMenu.addEventListener("click", () => {
   sidebar.classList.toggle("collapsed");
-};
+});
 
 /* ------------------------------
    SYSTEME DE PAGES
@@ -47,7 +47,7 @@ function refreshPageList() {
     const div = document.createElement("div");
     div.className = "tool";
     div.textContent = name;
-    div.onclick = () => loadPage(name);
+    div.addEventListener("click", () => loadPage(name));
     pageList.appendChild(div);
   });
 }
@@ -72,6 +72,9 @@ function updateTransform() {
   canvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
 }
 
+/* Empêche le menu d’être bloqué par le viewport */
+sidebar.addEventListener("touchstart", e => e.stopPropagation(), { passive: true });
+
 /* PAN AU DOIGT */
 viewport.addEventListener("touchstart", e => {
   if (e.touches.length === 1) {
@@ -79,14 +82,12 @@ viewport.addEventListener("touchstart", e => {
     startX = e.touches[0].clientX - offsetX;
     startY = e.touches[0].clientY - offsetY;
   }
-});
+}, { passive: true });
 
 /* PINCH ZOOM */
 let lastDist = 0;
 
 viewport.addEventListener("touchmove", e => {
-  e.preventDefault();
-
   if (e.touches.length === 1 && isPanning) {
     offsetX = e.touches[0].clientX - startX;
     offsetY = e.touches[0].clientY - startY;
@@ -197,24 +198,33 @@ function createImage(x, y, src) {
 }
 
 /* ------------------------------
-   BOUTONS DU MENU
+   BOUTONS — FIX iPHONE
 --------------------------------*/
-addText.onclick = () => createText(25000, 25000);
-addShape.onclick = () => createShape(25000, 25000);
+function bindButton(btn, handler) {
+  if (!btn) return;
 
-addImage.onclick = () => fileInput.click();
+  btn.addEventListener("click", handler);
+
+  btn.addEventListener("touchstart", e => {
+    e.preventDefault();
+    handler();
+  }, { passive: false });
+}
+
+bindButton(addText, () => createText(25000, 25000));
+bindButton(addShape, () => createShape(25000, 25000));
+
+bindButton(addImage, () => fileInput.click());
 fileInput.onchange = e => {
   const file = e.target.files[0];
+  if (!file) return;
   const url = URL.createObjectURL(file);
   createImage(25000, 25000, url);
   saveCurrentPage();
 };
 
-newPage.onclick = () => createPage();
-
-toggleDark.onclick = () => {
-  document.body.classList.toggle("dark");
-};
+bindButton(newPage, () => createPage());
+bindButton(toggleDark, () => document.body.classList.toggle("dark"));
 
 /* ------------------------------
    INITIALISATION
