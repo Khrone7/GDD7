@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
+<title>Game Design Document</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%237c3aed'/%3E%3Ctext x='50' y='65' font-size='55' text-anchor='middle' fill='white' font-family='sans-serif'%3EG%3C/text%3E%3C/svg%3E" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="GDD" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#ffffff" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/3.4.1/tailwind.min.js"></script>
+<style>
+  html, body { height: 100%; overscroll-behavior: none; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .scrollbar-none { scrollbar-width: none; }
+  textarea, input { font-family: inherit; }
+  #board { touch-action: none; }
+  .item-box { touch-action: none; }
+</style>
+</head>
+<body class="bg-white overflow-hidden">
+<div id="app" class="h-screen w-screen flex flex-col bg-white overflow-hidden"></div>
+
+<script>
+/* =========================================================
+   Game Design Document — canvas infini par page
+   Persistance : localStorage (clé "gdd-project-v4")
+
+   Modèle :
+   project = { title, pages: Page[] }
+   Page = { id, title, view: {x,y,zoom}, items: Item[] }
+   Item (texte)    = { id, kind:'text', x,y,w,h, text, color, fontSize }
+   Item (forme)    = { id, kind:'shape', shape:'rect'|'circle'|'arrow', x,y,w,h, color, label }
+   Item (image)    = { id, kind:'image', x,y,w,h, src }
+   Item (tableau)  = { id, kind:'table', x,y,w,h, columns:[{id,label}], rows:[{id,cells:{}}] }
+   x,y,w,h sont en coordonnées "monde" (indépendantes du pan/zoom)
+   ========================================================= */
+
+const STORAGE_KEY = "gdd-project-v4";
+const ACCENT = "#7c3aed";
+const MAX_IMAGE_DIM = 1000;
+const SHAPE_COLORS = ["#7c3aed", "#dc2626", "#2563eb", "#059669", "#d97706", "#1e293b"];
+const MIN_ZOOM = 0.25, MAX_ZOOM = 2.5;
+
+const uid = () => Math.random().toString(36).slice(2, 10);
+const esc = (s) => (s == null ? "" : String(s)).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* ---------------- Icônes SVG inline ---------------- */
+const ICONS = {
+  plus: (s=16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+  trash: (s=16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`,
+  x: (s=14) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+  save: (s=12) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
+  pencil: (s=12) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>`,
+  alert: (s=12) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  square: (s=18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>`,
+  circle: (s=18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>`,
+  arrow: (s=18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`,
+  type: (s=18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`,
+  image: (s=18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+  table: (s=18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="12" y1="3" x2="12" y2="21"/></svg>`,
+  recenter: (s=16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>`,
+  minus: (s=16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+};
+
+/* ---------------- Modèle par défaut ---------------- */
+function newPage(title) {
+  return { id: uid(), title, view: { x: 0, y: 0, zoom: 1 }, items: [] };
+}
+function defaultProject() {
+  const p1 = newPage("Vision du jeu");
+  p1.items = [
+    { id: uid(), kind: "text", x: 40, y: 40, w: 360, h: 40, text: "Vision du jeu", color: "#0f172a", fontSize: 26 },
+    { id: uid(), kind: "text", x: 40, y: 100, w: 360, h: 90, text: "Pitch : résume ton jeu en 2-3 phrases. Quel est le fantasme central ?", color: "#64748b", fontSize: 14 },
+    { id: uid(), kind: "text", x: 440, y: 100, w: 360, h: 90, text: "Genre et références : genre principal + 2-3 jeux de référence.", color: "#64748b", fontSize: 14 },
+  ];
+  const p2 = newPage("Gameplay");
+  const p3 = newPage("Schéma de niveau");
+  return { title: "Mon jeu", pages: [p1, p2, p3] };
+}
+
+/* ---------------- État global ---------------- */
+let project = null;
+let currentId = null;
+let saveStatus = "loading";
+let saveTimer = null;
+let editingTitle = false;
+let tabMenuRenaming = null;
+let selectedId = null;       // item sélectionné sur le canvas courant
+let shapeMenuOpen = false;
+
+// pan/zoom interaction state
+let panState = null;   // {startX,startY,origX,origY, pointerId}
+let dragState = null;  // {id, mode:'move'|'resize', startX,startY, orig...}
+let pinchState = null; // {startDist, startZoom, startViewX, startViewY, midWorldX, midWorldY}
+
+function loadProject() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    project = raw ? JSON.parse(raw) : defaultProject();
+  } catch {
+    project = defaultProject();
+  }
+  // migrations défensives
+  project.pages.forEach(p => { if (!p.view) p.view = { x: 0, y: 0, zoom: 1 }; if (!p.items) p.items = []; });
+  saveStatus = "saved";
+  currentId = project.pages[0] ? project.pages[0].id : null;
+}
+
+function persist(skipRender) {
+  saveStatus = "saving";
+  if (!skipRender) renderSaveIndicatorOnly();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+      saveStatus = "saved";
+    } catch {
+      saveStatus = "error";
+    }
+    renderSaveIndicatorOnly();
+  }, 350);
+}
+
+function getPage() { return project.pages.find(p => p.id === currentId) || null; }
+
+/* ---------------- Pages (onglets) ---------------- */
+function addPage() {
+  const p = newPage("Nouvelle page");
+  project.pages.push(p);
+  currentId = p.id;
+  selectedId = null;
+  persist();
+  render();
+}
+function deletePage(pageId) {
+  if (project.pages.length === 1) return;
+  const idx = project.pages.findIndex(p => p.id === pageId);
+  project.pages = project.pages.filter(p => p.id !== pageId);
+  if (pageId === currentId) {
+    const fallback = project.pages[Math.max(0, idx - 1)];
+    currentId = fallback ? fallback.id : null;
+    selectedId = null;
+  }
+  persist();
+  render();
+}
+function renamePageTitle(pageId, title) {
+  const p = project.pages.find(p => p.id === pageId);
+  if (p) p.title = title;
+  persist();
+}
+
+/* ---------------- Coordonnées monde <-> écran ---------------- */
+function worldToScreen(page, wx, wy) {
+  return { x: (wx + page.view.x) * page.view.zoom, y: (wy + page.view.y) * page.view.zoom };
+}
+function screenToWorld(page, sx, sy) {
+  return { x: sx / page.view.zoom - page.view.x, y: sy / page.view.zoom - page.view.y };
+}
+
+/* ---------------- Création d'éléments ---------------- */
+function centerWorldPoint(page) {
+  const boardEl = document.getElementById("board");
+  const rect = boardEl ? boardEl.getBoundingClientRect() : { width: 360, height: 500 };
+  return screenToWorld(page, rect.width / 2, rect.height / 2);
+}
+function addShapeItem(shape) {
+  const page = getPage();
+  const c = centerWorldPoint(page);
+  const w = shape === "arrow" ? 160 : 120;
+  const h = shape === "arrow" ? 50 : 120;
+  const item = { id: uid(), kind: "shape", shape, x: c.x - w / 2, y: c.y - h / 2, w, h, color: ACCENT, label: "" };
+  page.items.push(item);
+  selectedId = item.id;
+  persist();
+  render();
+}
+function addTextItem() {
+  const page = getPage();
+  const c = centerWorldPoint(page);
+  const item = { id: uid(), kind: "text", x: c.x - 90, y: c.y - 25, w: 180, h: 50, text: "Texte", color: "#1e293b", fontSize: 16 };
+  page.items.push(item);
+  selectedId = item.id;
+  persist();
+  render();
+}
+function addTableItem() {
+  const page = getPage();
+  const c = centerWorldPoint(page);
+  const item = {
+    id: uid(), kind: "table", x: c.x - 160, y: c.y - 70, w: 320, h: 140,
+    columns: [{ id: uid(), label: "Colonne 1" }, { id: uid(), label: "Colonne 2" }],
+    rows: [{ id: uid(), cells: {} }],
+  };
+  page.items.push(item);
+  selectedId = item.id;
+  persist();
+  render();
+}
+function resizeImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > MAX_IMAGE_DIM || height > MAX_IMAGE_DIM) {
+          const scale = MAX_IMAGE_DIM / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        resolve({ src: canvas.toDataURL("image/jpeg", 0.85), width, height });
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function addImageFile(file) {
+  if (!file) return;
+  try {
+    const { src, width, height } = await resizeImageFile(file);
+    const page = getPage();
+    const c = centerWorldPoint(page);
+    const maxW = 260;
+    const ratio = height / width;
+    const w = Math.min(maxW, width);
+    const h = Math.round(w * ratio);
+    const item = { id: uid(), kind: "image", x: c.x - w / 2, y: c.y - h / 2, w, h, src };
+    page.items.push(item);
+    selectedId = item.id;
+    persist();
+    render();
+  } catch {}
+}
+function deleteItem(itemId) {
+  const page = getPage();
+  page.items = page.items.filter(it => it.id !== itemId);
+  selectedId = null;
+  persist();
+  render();
+}
+function getItem(itemId) {
+  const page = getPage();
+  return page ? page.items.find(it => it.id === itemId) : null;
+}
+
+/* ---------------- Zoom controls ---------------- */
+function zoomBy(factor, screenPivot) {
+  const page = getPage();
+  const boardEl = document.getElementById("board");
+  const rect = boardEl.getBoundingClientRect();
+  const pivot = screenPivot || { x: rect.width / 2, y: rect.height / 2 };
+  const worldPivot = screenToWorld(page, pivot.x, pivot.y);
+  page.view.zoom = clamp(page.view.zoom * factor, MIN_ZOOM, MAX_ZOOM);
+  // garder le point sous le doigt stable
+  page.view.x = pivot.x / page.view.zoom - worldPivot.x;
+  page.view.y = pivot.y / page.view.zoom - worldPivot.y;
+  persist();
+  renderBoardOnly();
+}
+function recenterView() {
+  const page = getPage();
+  page.view = { x: 0, y: 0, zoom: 1 };
+  persist();
+  renderBoardOnly();
+}
+
+/* =========================================================
+   RENDU
+   ========================================================= */
+
+function renderTopBar() {
+  const titleHtml = editingTitle
+    ? `<input id="title-input" value="${esc(project.title)}" class="text-[16px] font-bold bg-transparent outline-none border-b border-violet-300 flex-1 min-w-0" />`
+    : `<button id="title-btn" class="flex items-center gap-1.5 text-[16px] font-bold text-slate-900 truncate flex-1 min-w-0 text-left">
+         <span class="truncate">${esc(project.title || "Mon jeu")}</span>
+         <span class="text-slate-300 shrink-0">${ICONS.pencil(11)}</span>
+       </button>`;
+  return `
+    <div class="flex items-center gap-3 px-3 pt-3 pb-2 border-b border-slate-100 shrink-0">
+      ${titleHtml}
+      <div id="save-indicator"></div>
+    </div>`;
+}
+function saveIndicatorHtml() {
+  const map = {
+    loading: { text: "Chargement…", cls: "text-slate-400", icon: ICONS.save(12) },
+    saving: { text: "Enregistrement…", cls: "text-amber-600", icon: ICONS.save(12) },
+    saved: { text: "Enregistré", cls: "text-emerald-600", icon: ICONS.save(12) },
+    error: { text: "Erreur", cls: "text-red-600", icon: ICONS.alert(12) },
+  };
+  const m = map[saveStatus] || map.saved;
+  return `<div class="flex items-center gap-1.5 text-[11px] font-medium ${m.cls} shrink-0">${m.icon}<span class="hidden sm:inline">${m.text}</span></div>`;
+}
+function renderSaveIndicatorOnly() {
+  const el = document.getElementById("save-indicator");
+  if (el) el.innerHTML = saveIndicatorHtml();
+}
+
+function renderTabsBar() {
+  const tabs = project.pages.map(page => {
+    const active = page.id === currentId;
+    const isRenaming = tabMenuRenaming === page.id;
+    const label = isRenaming
+      ? `<input data-action="rename-input" data-id="${page.id}" value="${esc(page.title)}" autofocus class="text-[13px] bg-slate-100 rounded px-1 outline-none w-24" />`
+      : `<span class="text-[13px] font-medium" data-action="rename-tab" data-id="${page.id}">${esc(page.title || "Sans titre")}</span>`;
+    return `
+      <div data-action="select-tab" data-id="${page.id}"
+        class="group relative flex items-center gap-1.5 px-3 py-2.5 cursor-pointer whitespace-nowrap border-b-2 transition-colors shrink-0 ${active ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}">
+        ${label}
+        <button data-action="delete-tab" data-id="${page.id}" class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 -mr-1" aria-label="Supprimer">${ICONS.x(12)}</button>
+      </div>`;
+  }).join("");
+
+  return `
+    <div class="border-b border-slate-200 bg-white relative shrink-0">
+      <div id="tabs-scroller" class="flex items-stretch overflow-x-auto scrollbar-none px-2 gap-0.5 pr-12">${tabs}</div>
+      <div class="absolute right-0 top-0 h-full flex items-center bg-gradient-to-l from-white via-white to-transparent pl-6 pr-1">
+        <button data-action="add-page" class="flex items-center justify-center w-8 h-8 rounded-full bg-violet-600 text-white hover:bg-violet-700 shadow-sm" aria-label="Nouvelle page">${ICONS.plus(16)}</button>
+      </div>
+    </div>`;
+}
+
+function renderItemHtml(page, item) {
+  const screen = worldToScreen(page, item.x, item.y);
+  const w = item.w * page.view.zoom;
+  const h = item.h * page.view.zoom;
+  const isSel = selectedId === item.id;
+  const ring = isSel ? "ring-2 ring-violet-500" : "";
+  let inner = "";
+
+  if (item.kind === "shape" && item.shape === "rect") {
+    inner = `<div class="w-full h-full rounded-md border-2 flex items-center justify-center font-medium px-1 text-center" style="border-color:${item.color};color:${item.color};background:${item.color}0F;font-size:${12 * page.view.zoom}px">${esc(item.label)}</div>`;
+  } else if (item.kind === "shape" && item.shape === "circle") {
+    inner = `<div class="w-full h-full rounded-full border-2 flex items-center justify-center font-medium px-1 text-center" style="border-color:${item.color};color:${item.color};background:${item.color}0F;font-size:${12 * page.view.zoom}px">${esc(item.label)}</div>`;
+  } else if (item.kind === "shape" && item.shape === "arrow") {
+    inner = `<svg width="100%" height="100%" viewBox="0 0 100 30" preserveAspectRatio="none"><line x1="2" y1="15" x2="90" y2="15" stroke="${item.color}" stroke-width="3"/><polygon points="90,6 100,15 90,24" fill="${item.color}"/></svg>`;
+  } else if (item.kind === "text") {
+    inner = `<textarea data-action="text-input" data-item-id="${item.id}" style="color:${item.color};font-size:${item.fontSize * page.view.zoom}px" class="w-full h-full bg-transparent outline-none resize-none font-medium leading-snug">${esc(item.text)}</textarea>`;
+  } else if (item.kind === "image") {
+    inner = `<img src="${item.src}" alt="" class="w-full h-full object-cover rounded-md pointer-events-none select-none" draggable="false" />`;
+  } else if (item.kind === "table") {
+    inner = renderTableItemInner(item, page.view.zoom);
+  }
+
+  const handle = isSel
+    ? `<div data-action="resize-handle" data-item-id="${item.id}" class="absolute -right-1.5 -bottom-1.5 w-4 h-4 rounded-full bg-violet-600 border-2 border-white shadow cursor-nwse-resize" style="touch-action:none"></div>`
+    : "";
+
+  return `<div data-action="canvas-item" data-item-id="${item.id}"
+      class="item-box absolute group ${ring}"
+      style="left:${screen.x}px;top:${screen.y}px;width:${w}px;height:${h}px;cursor:grab;">
+      ${inner}${handle}
+    </div>`;
+}
+
+function renderTableItemInner(item, zoom) {
+  const fs = Math.max(10, 13 * zoom);
+  const headerCells = item.columns.map(col => `
+    <div class="flex-1 min-w-0 px-1.5 py-1 bg-slate-50 border-b-2 border-slate-800 flex items-center gap-0.5 overflow-hidden">
+      <input data-action="table-col-label" data-item-id="${item.id}" data-col-id="${col.id}" value="${esc(col.label)}"
+        style="font-size:${fs}px" class="bg-transparent outline-none font-semibold text-slate-700 w-full min-w-0" />
+      <button data-action="table-del-col" data-item-id="${item.id}" data-col-id="${col.id}" class="text-slate-300 hover:text-red-500 shrink-0">${ICONS.x(Math.max(10,11*zoom))}</button>
+    </div>`).join("");
+  const rows = item.rows.map(row => `
+    <div class="flex border-b border-slate-200">
+      ${item.columns.map(col => `
+        <div class="flex-1 min-w-0 px-1.5 py-1 overflow-hidden">
+          <input data-action="table-cell" data-item-id="${item.id}" data-row-id="${row.id}" data-col-id="${col.id}" value="${esc(row.cells[col.id] || "")}"
+            style="font-size:${fs}px" class="bg-transparent outline-none text-slate-700 w-full min-w-0" placeholder="—" />
+        </div>`).join("")}
+      <button data-action="table-del-row" data-item-id="${item.id}" data-row-id="${row.id}" class="text-slate-300 hover:text-red-500 px-1 shrink-0">${ICONS.x(Math.max(10,11*zoom))}</button>
+    </div>`).join("");
+  return `
+    <div class="w-full h-full bg-white border border-slate-200 rounded-md overflow-auto flex flex-col">
+      <div class="flex shrink-0">${headerCells}
+        <button data-action="table-add-col" data-item-id="${item.id}" class="px-1.5 text-slate-400 hover:text-violet-700 bg-slate-50 border-b-2 border-slate-800 shrink-0">${ICONS.plus(Math.max(10,12*zoom))}</button>
+      </div>
+      <div class="flex-1 overflow-auto">${rows}</div>
+      <button data-action="table-add-row" data-item-id="${item.id}" class="text-[11px] text-violet-600 hover:text-violet-800 text-left px-2 py-1 shrink-0" style="font-size:${Math.max(10,11*zoom)}px">+ ligne</button>
+    </div>`;
+}
+
+function renderBoard() {
+  const page = getPage();
+  if (!page) return `<div class="flex-1 flex items-center justify-center text-slate-400">Aucune page</div>`;
+  const itemsHtml = page.items.map(it => renderItemHtml(page, it)).join("");
+  const bgPos = `${page.view.x * page.view.zoom}px ${page.view.y * page.view.zoom}px`;
+  const bgSize = `${20 * page.view.zoom}px ${20 * page.view.zoom}px`;
+  const empty = page.items.length === 0
+    ? `<div class="absolute inset-0 flex items-center justify-center text-slate-300 text-[13px] pointer-events-none px-8 text-center">Page vide — ajoute du texte, une forme, une photo ou un tableau depuis la barre du bas.<br/>Glisse pour te déplacer, pince pour zoomer.</div>` : "";
+
+  return `
+    <div id="board" class="relative flex-1 overflow-hidden bg-white"
+      style="background-image:linear-gradient(to right,#f1f5f9 1px,transparent 1px),linear-gradient(to bottom,#f1f5f9 1px,transparent 1px);background-size:${bgSize};background-position:${bgPos};">
+      ${empty}
+      ${itemsHtml}
+    </div>`;
+}
+function renderBoardOnly() {
+  const container = document.getElementById("board-container");
+  if (container) container.innerHTML = renderBoard();
+  renderSaveIndicatorOnly();
+}
+
+function renderZoomControls() {
+  const page = getPage();
+  const pct = page ? Math.round(page.view.zoom * 100) : 100;
+  return `
+    <div class="absolute right-2 bottom-[88px] flex flex-col items-center bg-white rounded-full shadow-md border border-slate-200 overflow-hidden">
+      <button data-action="zoom-in" class="w-9 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-50">${ICONS.plus(16)}</button>
+      <div class="text-[10px] text-slate-400 py-0.5 border-y border-slate-100 w-full text-center">${pct}%</div>
+      <button data-action="zoom-out" class="w-9 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-50">${ICONS.minus(16)}</button>
+      <button data-action="recenter" class="w-9 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-50 border-t border-slate-100">${ICONS.recenter(15)}</button>
+    </div>`;
+}
+
+function renderBottomToolbar() {
+  const selected = getItem(selectedId);
+  const shapeMenu = shapeMenuOpen ? `
+    <div class="fixed inset-0 z-10" data-action="close-shape-menu"></div>
+    <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-lg border border-slate-200 p-1.5 flex gap-1 z-20">
+      <button data-action="add-shape" data-shape="rect" class="flex flex-col items-center gap-1 px-3 py-2 rounded-lg hover:bg-slate-50 text-slate-600"><span>${ICONS.square(18)}</span><span class="text-[10px]">Rectangle</span></button>
+      <button data-action="add-shape" data-shape="circle" class="flex flex-col items-center gap-1 px-3 py-2 rounded-lg hover:bg-slate-50 text-slate-600"><span>${ICONS.circle(18)}</span><span class="text-[10px]">Cercle</span></button>
+      <button data-action="add-shape" data-shape="arrow" class="flex flex-col items-center gap-1 px-3 py-2 rounded-lg hover:bg-slate-50 text-slate-600"><span>${ICONS.arrow(18)}</span><span class="text-[10px]">Flèche</span></button>
+    </div>` : "";
+
+  const inspector = selected ? `
+    <div class="flex items-center gap-2 px-3 py-2 border-t border-slate-100 bg-slate-50 overflow-x-auto scrollbar-none">
+      ${selected.kind === "shape" ? `<input data-action="shape-label-input" data-item-id="${selected.id}" value="${esc(selected.label)}" placeholder="Légende" class="text-[13px] px-2 py-1 rounded border border-slate-200 outline-none focus:border-violet-400 w-28 shrink-0" />` : ""}
+      ${(selected.kind === "shape" || selected.kind === "text") ? `
+        <div class="flex items-center gap-1 shrink-0">
+          ${SHAPE_COLORS.map(c => `<button data-action="set-color" data-item-id="${selected.id}" data-color="${c}" style="background:${c}" class="w-6 h-6 rounded-full border-2 ${selected.color === c ? "border-slate-800" : "border-white"} shrink-0"></button>`).join("")}
+        </div>` : ""}
+      <button data-action="delete-item" data-item-id="${selected.id}" class="flex items-center gap-1 text-[12.5px] text-red-500 hover:text-red-700 ml-auto shrink-0 px-2">${ICONS.trash(14)} Supprimer</button>
+    </div>` : "";
+
+  return `
+    <div class="shrink-0 bg-white border-t border-slate-200 relative">
+      ${shapeMenu}
+      ${inspector}
+      <div class="flex items-center justify-center gap-1 px-2 py-2" style="padding-bottom:max(8px,env(safe-area-inset-bottom));">
+        <button data-action="toggle-shape-menu" class="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg hover:bg-slate-50 text-slate-600">${ICONS.square(19)}<span class="text-[10px]">Forme</span></button>
+        <button data-action="add-text" class="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg hover:bg-slate-50 text-slate-600">${ICONS.type(19)}<span class="text-[10px]">Texte</span></button>
+        <button data-action="trigger-file" class="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg hover:bg-slate-50 text-slate-600">${ICONS.image(19)}<span class="text-[10px]">Photo</span></button>
+        <button data-action="add-table" class="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg hover:bg-slate-50 text-slate-600">${ICONS.table(19)}<span class="text-[10px]">Tableau</span></button>
+        <input id="file-input" type="file" accept="image/*" class="hidden" />
+      </div>
+    </div>`;
+}
+
+function render() {
+  const app = document.getElementById("app");
+  if (!project) {
+    app.innerHTML = `<div class="h-screen flex items-center justify-center bg-white text-slate-400">Chargement…</div>`;
+    return;
+  }
+  app.innerHTML = `
+    ${renderTopBar()}
+    ${renderTabsBar()}
+    <div id="board-container" class="relative flex-1 min-h-0">
+      ${renderBoard()}
+      ${renderZoomControls()}
+    </div>
+    ${renderBottomToolbar()}
+  `;
+  renderSaveIndicatorOnly();
+  scrollActiveTabIntoView();
+  attachFileInputHandler();
+}
+
+function scrollActiveTabIntoView() {
+  const el = document.querySelector(`[data-action="select-tab"][data-id="${currentId}"]`);
+  if (el) el.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+}
+function attachFileInputHandler() {
+  const input = document.getElementById("file-input");
+  if (!input) return;
+  input.addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    addImageFile(file);
+  });
+}
+
+/* =========================================================
+   INTERACTIONS : pan, zoom (pinch + boutons), drag/resize items
+   ========================================================= */
+
+function dist(p1, p2) { return Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY); }
+function mid(p1, p2) { return { x: (p1.clientX + p2.clientX) / 2, y: (p1.clientY + p2.clientY) / 2 }; }
+
+const activePointers = new Map();
+
+document.addEventListener("pointerdown", (e) => {
+  const boardEl = document.getElementById("board");
+  if (!boardEl || !boardEl.contains(e.target)) return;
+
+  const handleEl = e.target.closest('[data-action="resize-handle"]');
+  const itemEl = e.target.closest('[data-action="canvas-item"]');
+
+  activePointers.set(e.pointerId, e);
+
+  if (activePointers.size === 2) {
+    // début pinch : annule pan/drag simple en cours
+    panState = null;
+    dragState = null;
+    const pts = Array.from(activePointers.values());
+    const page = getPage();
+    const rect = boardEl.getBoundingClientRect();
+    const m = mid(pts[0], pts[1]);
+    const worldMid = screenToWorld(page, m.x - rect.left, m.y - rect.top);
+    pinchState = { startDist: dist(pts[0], pts[1]), startZoom: page.view.zoom, worldMid, rectLeft: rect.left, rectTop: rect.top };
+    return;
+  }
+
+  if (handleEl) {
+    e.stopPropagation();
+    const itemId = handleEl.dataset.itemId;
+    const item = getItem(itemId);
+    selectedId = itemId;
+    dragState = { id: itemId, mode: "resize", startX: e.clientX, startY: e.clientY, origW: item.w, origH: item.h, zoom: getPage().view.zoom };
+    render();
+    return;
+  }
+
+  if (itemEl) {
+    const tag = e.target.tagName;
+    selectedId = itemEl.dataset.itemId;
+    if (tag === "TEXTAREA" || tag === "INPUT" || e.target.closest('[data-action="table-add-row"],[data-action="table-add-col"],[data-action="table-del-row"],[data-action="table-del-col"]')) {
+      // laisser l'édition native du champ se faire, juste sélectionner visuellement
+      renderBottomToolbarOnly();
+      highlightSelected();
+      return;
+    }
+    e.stopPropagation();
+    const item = getItem(selectedId);
+    dragState = { id: selectedId, mode: "move", startX: e.clientX, startY: e.clientY, origX: item.x, origY: item.y, zoom: getPage().view.zoom };
+    render();
+    return;
+  }
+
+  // clic dans le vide : désélection + début de pan
+  selectedId = null;
+  const page = getPage();
+  panState = { startX: e.clientX, startY: e.clientY, origX: page.view.x, origY: page.view.y, zoom: page.view.zoom };
+  render();
+});
+
+document.addEventListener("pointermove", (e) => {
+  if (activePointers.has(e.pointerId)) activePointers.set(e.pointerId, e);
+
+  if (pinchState && activePointers.size === 2) {
+    const pts = Array.from(activePointers.values());
+    const page = getPage();
+    const newDist = dist(pts[0], pts[1]);
+    const factor = newDist / (pinchState.startDist || 1);
+    const newZoom = clamp(pinchState.startZoom * factor, MIN_ZOOM, MAX_ZOOM);
+    const m = mid(pts[0], pts[1]);
+    page.view.zoom = newZoom;
+    page.view.x = (m.x - pinchState.rectLeft) / newZoom - pinchState.worldMid.x;
+    page.view.y = (m.y - pinchState.rectTop) / newZoom - pinchState.worldMid.y;
+    renderBoardOnly();
+    return;
+  }
+
+  if (dragState) {
+    const page = getPage();
+    const dx = (e.clientX - dragState.startX) / page.view.zoom;
+    const dy = (e.clientY - dragState.startY) / page.view.zoom;
+    const item = getItem(dragState.id);
+    if (!item) return;
+    if (dragState.mode === "move") {
+      item.x = dragState.origX + dx;
+      item.y = dragState.origY + dy;
+    } else {
+      item.w = Math.max(40, dragState.origW + dx);
+      item.h = Math.max(30, dragState.origH + dy);
+    }
+    // mise à jour légère du DOM pour fluidité
+    const el = document.querySelector(`[data-action="canvas-item"][data-item-id="${item.id}"]`);
+    if (el) {
+      const s = worldToScreen(page, item.x, item.y);
+      el.style.left = s.x + "px"; el.style.top = s.y + "px";
+      el.style.width = (item.w * page.view.zoom) + "px"; el.style.height = (item.h * page.view.zoom) + "px";
+    }
+    return;
+  }
+
+  if (panState) {
+    const page = getPage();
+    const dx = (e.clientX - panState.startX) / panState.zoom;
+    const dy = (e.clientY - panState.startY) / panState.zoom;
+    page.view.x = panState.origX + dx;
+    page.view.y = panState.origY + dy;
+    renderBoardOnly();
+  }
+});
+
+function endInteraction(e) {
+  activePointers.delete(e.pointerId);
+  if (activePointers.size < 2) pinchState = null;
+  if (dragState) { dragState = null; persist(); render(); }
+  if (panState) { panState = null; persist(false); }
+}
+document.addEventListener("pointerup", endInteraction);
+document.addEventListener("pointercancel", endInteraction);
+
+function highlightSelected() {
+  document.querySelectorAll('[data-action="canvas-item"]').forEach(el => {
+    el.classList.toggle("ring-2", el.dataset.itemId === selectedId);
+    el.classList.toggle("ring-violet-500", el.dataset.itemId === selectedId);
+  });
+}
+function renderBottomToolbarOnly() {
+  const container = document.getElementById("app");
+  const old = container.querySelector(".shrink-0.bg-white.border-t.border-slate-200.relative");
+  if (old) old.outerHTML = renderBottomToolbar();
+}
+
+/* ---------------- Délégation clic (actions ponctuelles) ---------------- */
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-action]");
+  if (!el) return;
+  const action = el.dataset.action;
+
+  switch (action) {
+    case "select-tab":
+      currentId = el.dataset.id;
+      selectedId = null;
+      render();
+      break;
+    case "delete-tab":
+      e.stopPropagation();
+      deletePage(el.dataset.id);
+      break;
+    case "rename-tab": {
+      e.stopPropagation();
+      tabMenuRenaming = el.dataset.id;
+      render();
+      const input = document.querySelector('[data-action="rename-input"]');
+      if (input) { input.focus(); input.select(); }
+      break;
+    }
+    case "add-page":
+      addPage();
+      break;
+    case "title-btn":
+      break;
+    case "toggle-shape-menu":
+      shapeMenuOpen = !shapeMenuOpen;
+      render();
+      break;
+    case "close-shape-menu":
+      shapeMenuOpen = false;
+      render();
+      break;
+    case "add-shape":
+      shapeMenuOpen = false;
+      addShapeItem(el.dataset.shape);
+      break;
+    case "add-text":
+      addTextItem();
+      break;
+    case "add-table":
+      addTableItem();
+      break;
+    case "trigger-file":
+      document.getElementById("file-input")?.click();
+      break;
+    case "delete-item":
+      deleteItem(el.dataset.itemId);
+      break;
+    case "set-color": {
+      const item = getItem(el.dataset.itemId);
+      item.color = el.dataset.color;
+      persist();
+      render();
+      break;
+    }
+    case "zoom-in": zoomBy(1.25); break;
+    case "zoom-out": zoomBy(0.8); break;
+    case "recenter": recenterView(); break;
+    case "table-add-col": {
+      const item = getItem(el.dataset.itemId);
+      item.columns.push({ id: uid(), label: "Colonne" });
+      persist();
+      render();
+      break;
+    }
+    case "table-del-col": {
+      const item = getItem(el.dataset.itemId);
+      const colId = el.dataset.colId;
+      item.columns = item.columns.filter(c => c.id !== colId);
+      item.rows.forEach(r => delete r.cells[colId]);
+      persist();
+      render();
+      break;
+    }
+    case "table-add-row": {
+      const item = getItem(el.dataset.itemId);
+      item.rows.push({ id: uid(), cells: {} });
+      persist();
+      render();
+      break;
+    }
+    case "table-del-row": {
+      const item = getItem(el.dataset.itemId);
+      item.rows = item.rows.filter(r => r.id !== el.dataset.rowId);
+      persist();
+      render();
+      break;
+    }
+  }
+});
+
+// titre du projet
+document.addEventListener("click", (e) => {
+  if (e.target.closest("#title-btn")) {
+    editingTitle = true;
+    render();
+    document.getElementById("title-input")?.focus();
+  }
+});
+
+/* ---------------- input : champs texte ---------------- */
+document.addEventListener("input", (e) => {
+  const t = e.target;
+  if (t.id === "title-input") { project.title = t.value; persist(); return; }
+  if (t.dataset.action === "rename-input") { renamePageTitle(t.dataset.id, t.value); return; }
+  if (t.dataset.action === "text-input") {
+    const item = getItem(t.dataset.itemId);
+    if (item) { item.text = t.value; persist(); }
+    return;
+  }
+  if (t.dataset.action === "shape-label-input") {
+    const item = getItem(t.dataset.itemId);
+    if (item) { item.label = t.value; persist(); }
+    return;
+  }
+  if (t.dataset.action === "table-col-label") {
+    const item = getItem(t.dataset.itemId);
+    const col = item.columns.find(c => c.id === t.dataset.colId);
+    if (col) { col.label = t.value; persist(); }
+    return;
+  }
+  if (t.dataset.action === "table-cell") {
+    const item = getItem(t.dataset.itemId);
+    const row = item.rows.find(r => r.id === t.dataset.rowId);
+    if (row) { row.cells[t.dataset.colId] = t.value; persist(); }
+    return;
+  }
+});
+
+document.addEventListener("focusout", (e) => {
+  if (e.target.id === "title-input") { editingTitle = false; render(); }
+  if (e.target.dataset && e.target.dataset.action === "rename-input") { tabMenuRenaming = null; render(); }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.target.id === "title-input" && e.key === "Enter") { editingTitle = false; render(); }
+  if (e.target.dataset && e.target.dataset.action === "rename-input" && e.key === "Enter") { tabMenuRenaming = null; render(); }
+});
+
+// empêcher le scroll/zoom natif de la page (le pinch est géré nous-même)
+document.addEventListener("touchmove", (e) => {
+  if (e.target.closest("#board")) e.preventDefault();
+}, { passive: false });
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+
+/* ---------------- Démarrage ---------------- */
+loadProject();
+render();
+</script>
+</body>
+</html>
