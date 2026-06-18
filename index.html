@@ -6,11 +6,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
 <link rel="stylesheet" href="style.css">
-<script src="app.js" defer></script>
 </head>
 
 <body>
 
+<!-- MENU LATERAL -->
 <div id="sidebar">
   <div id="toggleMenu">≡</div>
 
@@ -43,13 +43,19 @@
   <div id="pageList"></div>
 </div>
 
+<!-- CANVAS -->
 <div id="viewport">
   <div id="canvas"></div>
 </div>
 
+<!-- MINI-MAP -->
 <canvas id="minimap"></canvas>
 
+<!-- IMPORT IMAGE -->
 <input type="file" id="fileInput" accept="image/*" style="display:none;">
+
+<!-- IMPORTANT : LE SCRIPT DOIT ÊTRE ICI -->
+<script src="app.js"></script>
 
 </body>
 </html>
