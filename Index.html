@@ -12,16 +12,78 @@
 <meta name="theme-color" content="#ffffff" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/3.4.1/tailwind.min.js"></script>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
   html, body { height: 100%; overscroll-behavior: none; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   .scrollbar-none::-webkit-scrollbar { display: none; }
   .scrollbar-none { scrollbar-width: none; }
   textarea, input { font-family: inherit; }
   #board { touch-action: none; }
   .item-box { touch-action: none; }
+
+  /* Design tokens */
+  :root {
+    --bg: #f8f7f5;
+    --surface: #ffffff;
+    --accent: #6d28d9;
+    --accent-soft: #ede9fe;
+    --accent-mid: #8b5cf6;
+    --border: #e5e1d8;
+    --text-primary: #1c1917;
+    --text-muted: #78716c;
+    --text-soft: #a8a29e;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04);
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  /* Item cards look like proper cards on the canvas */
+  .item-box { filter: drop-shadow(0 2px 6px rgba(0,0,0,0.07)); }
+  .item-box[data-selected="true"] { filter: drop-shadow(0 0 0 2px #6d28d9) drop-shadow(0 2px 8px rgba(109,40,217,0.2)); }
+
+  /* Textarea inside items: no resize, clean */
+  .item-box textarea { resize: none; }
+
+  /* Toolbar buttons */
+  .tool-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 8px 14px; border-radius: 8px; color: var(--text-muted);
+    font-size: 10px; font-weight: 500; letter-spacing: 0.02em;
+    transition: background 0.15s, color 0.15s;
+    cursor: pointer; border: none; background: transparent;
+  }
+  .tool-btn:hover { background: var(--accent-soft); color: var(--accent); }
+  .tool-btn:active { background: #ddd6fe; }
+
+  /* Tab styling */
+  .tab-item {
+    position: relative; display: flex; align-items: center; gap: 6px;
+    padding: 8px 14px; cursor: pointer; white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    font-size: 13px; font-weight: 500; color: var(--text-muted);
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab-item.active { border-bottom-color: var(--accent); color: var(--accent); }
+  .tab-item:not(.active):hover { color: var(--text-primary); }
+  .tab-delete { opacity: 0; transition: opacity 0.15s; }
+  .tab-item:hover .tab-delete { opacity: 1; }
+
+  /* Resize handle */
+  .resize-handle {
+    position: absolute; right: -6px; bottom: -6px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); border: 2px solid white;
+    box-shadow: var(--shadow-sm); cursor: nwse-resize;
+    touch-action: none;
+  }
+
+  /* Canvas item selected ring */
+  .ring-2 { outline: 2px solid var(--accent) !important; outline-offset: 1px; }
 </style>
 </head>
-<body class="bg-white overflow-hidden">
+<body class="bg-white overflow-hidden" style="background:var(--bg)!important;">
 <div id="app" class="h-screen w-screen flex flex-col bg-white overflow-hidden"></div>
 
 <script>
@@ -282,26 +344,26 @@ function recenterView() {
 
 function renderTopBar() {
   const titleHtml = editingTitle
-    ? `<input id="title-input" value="${esc(project.title)}" class="text-[16px] font-bold bg-transparent outline-none border-b border-violet-300 flex-1 min-w-0" />`
-    : `<button id="title-btn" class="flex items-center gap-1.5 text-[16px] font-bold text-slate-900 truncate flex-1 min-w-0 text-left">
-         <span class="truncate">${esc(project.title || "Mon jeu")}</span>
-         <span class="text-slate-300 shrink-0">${ICONS.pencil(11)}</span>
+    ? `<input id="title-input" value="${esc(project.title)}" class="text-[15px] font-semibold bg-transparent outline-none border-b-2 flex-1 min-w-0" style="border-color:var(--accent);color:var(--text-primary);" />`
+    : `<button id="title-btn" class="flex items-center gap-1.5 flex-1 min-w-0 text-left">
+         <span class="text-[15px] font-semibold truncate" style="color:var(--text-primary);">${esc(project.title || "Mon jeu")}</span>
+         <span style="color:var(--text-soft);">${ICONS.pencil(11)}</span>
        </button>`;
   return `
-    <div class="flex items-center gap-3 px-3 pt-3 pb-2 border-b border-slate-100 shrink-0">
+    <div class="flex items-center gap-3 px-4 shrink-0" style="padding-top:12px;padding-bottom:10px;background:var(--surface);border-bottom:1px solid var(--border);">
       ${titleHtml}
       <div id="save-indicator"></div>
     </div>`;
 }
 function saveIndicatorHtml() {
   const map = {
-    loading: { text: "Chargement…", cls: "text-slate-400", icon: ICONS.save(12) },
-    saving: { text: "Enregistrement…", cls: "text-amber-600", icon: ICONS.save(12) },
-    saved: { text: "Enregistré", cls: "text-emerald-600", icon: ICONS.save(12) },
-    error: { text: "Erreur", cls: "text-red-600", icon: ICONS.alert(12) },
+    loading: { text: "Chargement…", color: "var(--text-soft)", icon: ICONS.save(12) },
+    saving:  { text: "Enregistrement…", color: "#d97706", icon: ICONS.save(12) },
+    saved:   { text: "Enregistré", color: "#059669", icon: ICONS.save(12) },
+    error:   { text: "Erreur", color: "#dc2626", icon: ICONS.alert(12) },
   };
   const m = map[saveStatus] || map.saved;
-  return `<div class="flex items-center gap-1.5 text-[11px] font-medium ${m.cls} shrink-0">${m.icon}<span class="hidden sm:inline">${m.text}</span></div>`;
+  return `<div class="flex items-center gap-1.5 shrink-0" style="font-size:11px;font-weight:500;color:${m.color};">${m.icon}<span class="hidden sm:inline">${m.text}</span></div>`;
 }
 function renderSaveIndicatorOnly() {
   const el = document.getElementById("save-indicator");
@@ -313,21 +375,20 @@ function renderTabsBar() {
     const active = page.id === currentId;
     const isRenaming = tabMenuRenaming === page.id;
     const label = isRenaming
-      ? `<input data-action="rename-input" data-id="${page.id}" value="${esc(page.title)}" autofocus class="text-[13px] bg-slate-100 rounded px-1 outline-none w-24" />`
-      : `<span class="text-[13px] font-medium" data-action="rename-tab" data-id="${page.id}">${esc(page.title || "Sans titre")}</span>`;
+      ? `<input data-action="rename-input" data-id="${page.id}" value="${esc(page.title)}" autofocus style="font-size:13px;background:#f5f3ff;border-radius:4px;padding:2px 6px;outline:none;width:96px;" />`
+      : `<span style="font-size:13px;font-weight:500;" data-action="rename-tab" data-id="${page.id}">${esc(page.title || "Sans titre")}</span>`;
     return `
-      <div data-action="select-tab" data-id="${page.id}"
-        class="group relative flex items-center gap-1.5 px-3 py-2.5 cursor-pointer whitespace-nowrap border-b-2 transition-colors shrink-0 ${active ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"}">
+      <div data-action="select-tab" data-id="${page.id}" class="tab-item ${active ? "active" : ""}">
         ${label}
-        <button data-action="delete-tab" data-id="${page.id}" class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 -mr-1" aria-label="Supprimer">${ICONS.x(12)}</button>
+        <button data-action="delete-tab" data-id="${page.id}" class="tab-delete" style="color:var(--text-soft);background:none;border:none;cursor:pointer;line-height:1;" aria-label="Supprimer">${ICONS.x(11)}</button>
       </div>`;
   }).join("");
 
   return `
-    <div class="border-b border-slate-200 bg-white relative shrink-0">
-      <div id="tabs-scroller" class="flex items-stretch overflow-x-auto scrollbar-none px-2 gap-0.5 pr-12">${tabs}</div>
-      <div class="absolute right-0 top-0 h-full flex items-center bg-gradient-to-l from-white via-white to-transparent pl-6 pr-1">
-        <button data-action="add-page" class="flex items-center justify-center w-8 h-8 rounded-full bg-violet-600 text-white hover:bg-violet-700 shadow-sm" aria-label="Nouvelle page">${ICONS.plus(16)}</button>
+    <div class="shrink-0" style="background:var(--surface);border-bottom:1px solid var(--border);position:relative;">
+      <div id="tabs-scroller" class="flex items-stretch overflow-x-auto scrollbar-none" style="padding:0 8px;padding-right:44px;gap:2px;">${tabs}</div>
+      <div style="position:absolute;right:0;top:0;height:100%;display:flex;align-items:center;background:linear-gradient(to left,white 70%,transparent);padding:0 6px 0 20px;">
+        <button data-action="add-page" style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:white;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);" aria-label="Nouvelle page">${ICONS.plus(14)}</button>
       </div>
     </div>`;
 }
@@ -337,33 +398,41 @@ function renderItemHtml(page, item) {
   const w = item.w * page.view.zoom;
   const h = item.h * page.view.zoom;
   const isSel = selectedId === item.id;
-  const ring = isSel ? "ring-2 ring-violet-500" : "";
+  const selStyle = isSel ? "outline:2px solid #6d28d9;outline-offset:1px;" : "";
   let inner = "";
 
   if (item.kind === "shape" && item.shape === "rect") {
-    inner = `<div class="w-full h-full rounded-md border-2 flex items-center justify-center font-medium px-1 text-center" style="border-color:${item.color};color:${item.color};background:${item.color}0F;font-size:${12 * page.view.zoom}px">${esc(item.label)}</div>`;
+    inner = `<div style="width:100%;height:100%;border-radius:8px;border:2px solid ${item.color};color:${item.color};background:${item.color}18;font-size:${12 * page.view.zoom}px;display:flex;align-items:center;justify-content:center;font-weight:600;padding:4px;box-sizing:border-box;text-align:center;">${esc(item.label)}</div>`;
   } else if (item.kind === "shape" && item.shape === "circle") {
-    inner = `<div class="w-full h-full rounded-full border-2 flex items-center justify-center font-medium px-1 text-center" style="border-color:${item.color};color:${item.color};background:${item.color}0F;font-size:${12 * page.view.zoom}px">${esc(item.label)}</div>`;
+    inner = `<div style="width:100%;height:100%;border-radius:50%;border:2px solid ${item.color};color:${item.color};background:${item.color}18;font-size:${12 * page.view.zoom}px;display:flex;align-items:center;justify-content:center;font-weight:600;padding:4px;box-sizing:border-box;text-align:center;">${esc(item.label)}</div>`;
   } else if (item.kind === "shape" && item.shape === "arrow") {
-    inner = `<svg width="100%" height="100%" viewBox="0 0 100 30" preserveAspectRatio="none"><line x1="2" y1="15" x2="90" y2="15" stroke="${item.color}" stroke-width="3"/><polygon points="90,6 100,15 90,24" fill="${item.color}"/></svg>`;
+    inner = `<svg width="100%" height="100%" viewBox="0 0 100 30" preserveAspectRatio="none"><line x1="2" y1="15" x2="90" y2="15" stroke="${item.color}" stroke-width="2.5"/><polygon points="90,7 100,15 90,23" fill="${item.color}"/></svg>`;
   } else if (item.kind === "text") {
-    inner = `<textarea data-action="text-input" data-item-id="${item.id}" style="color:${item.color};font-size:${item.fontSize * page.view.zoom}px" class="w-full h-full bg-transparent outline-none resize-none font-medium leading-snug">${esc(item.text)}</textarea>`;
+    inner = `<div style="width:100%;height:100%;background:white;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;box-sizing:border-box;padding:${Math.max(6,8*page.view.zoom)}px;">
+      <textarea data-action="text-input" data-item-id="${item.id}"
+        style="width:100%;height:100%;background:transparent;border:none;outline:none;resize:none;color:${item.color};font-size:${item.fontSize * page.view.zoom}px;font-weight:500;line-height:1.45;font-family:inherit;box-sizing:border-box;"
+      >${esc(item.text)}</textarea>
+    </div>`;
   } else if (item.kind === "image") {
-    inner = `<img src="${item.src}" alt="" class="w-full h-full object-cover rounded-md pointer-events-none select-none" draggable="false" />`;
+    inner = `<img src="${item.src}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:8px;display:block;" draggable="false" />`;
   } else if (item.kind === "table") {
     inner = renderTableItemInner(item, page.view.zoom);
   }
 
   const handle = isSel
-    ? `<div data-action="resize-handle" data-item-id="${item.id}" class="absolute -right-1.5 -bottom-1.5 w-4 h-4 rounded-full bg-violet-600 border-2 border-white shadow cursor-nwse-resize" style="touch-action:none"></div>`
+    ? `<div data-action="resize-handle" data-item-id="${item.id}" class="resize-handle" style="touch-action:none"></div>`
     : "";
 
+  // Drag indicator strip at top when selected
+  const dragBar = isSel ? `<div style="position:absolute;top:0;left:0;right:0;height:20px;cursor:grab;border-radius:8px 8px 0 0;z-index:1;"></div>` : "";
+
   return `<div data-action="canvas-item" data-item-id="${item.id}"
-      class="item-box absolute group ${ring}"
-      style="left:${screen.x}px;top:${screen.y}px;width:${w}px;height:${h}px;cursor:grab;">
+      class="item-box absolute"
+      style="left:${screen.x}px;top:${screen.y}px;width:${w}px;height:${h}px;cursor:grab;${selStyle}border-radius:8px;">
       ${inner}${handle}
     </div>`;
 }
+
 
 function renderTableItemInner(item, zoom) {
   const fs = Math.max(10, 13 * zoom);
@@ -402,8 +471,7 @@ function renderBoard() {
     ? `<div class="absolute inset-0 flex items-center justify-center text-slate-300 text-[13px] pointer-events-none px-8 text-center">Page vide — ajoute du texte, une forme, une photo ou un tableau depuis la barre du bas.<br/>Glisse pour te déplacer, pince pour zoomer.</div>` : "";
 
   return `
-    <div id="board" class="relative flex-1 overflow-hidden bg-white"
-      style="background-image:linear-gradient(to right,#f1f5f9 1px,transparent 1px),linear-gradient(to bottom,#f1f5f9 1px,transparent 1px);background-size:${bgSize};background-position:${bgPos};">
+    <div id="board" class="relative flex-1 overflow-hidden" style="background:#f8f7f5;">
       ${empty}
       ${itemsHtml}
     </div>`;
@@ -418,11 +486,11 @@ function renderZoomControls() {
   const page = getPage();
   const pct = page ? Math.round(page.view.zoom * 100) : 100;
   return `
-    <div class="absolute right-2 bottom-[88px] flex flex-col items-center bg-white rounded-full shadow-md border border-slate-200 overflow-hidden">
-      <button data-action="zoom-in" class="w-9 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-50">${ICONS.plus(16)}</button>
-      <div class="text-[10px] text-slate-400 py-0.5 border-y border-slate-100 w-full text-center">${pct}%</div>
-      <button data-action="zoom-out" class="w-9 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-50">${ICONS.minus(16)}</button>
-      <button data-action="recenter" class="w-9 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-50 border-t border-slate-100">${ICONS.recenter(15)}</button>
+    <div style="position:absolute;right:10px;bottom:96px;display:flex;flex-direction:column;align-items:center;background:white;border-radius:24px;box-shadow:var(--shadow-md);border:1px solid var(--border);overflow:hidden;">
+      <button data-action="zoom-in" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);background:none;border:none;cursor:pointer;">${ICONS.plus(15)}</button>
+      <div style="font-size:10px;color:var(--text-soft);padding:2px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);width:100%;text-align:center;letter-spacing:0.02em;">${pct}%</div>
+      <button data-action="zoom-out" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);background:none;border:none;cursor:pointer;">${ICONS.minus(15)}</button>
+      <button data-action="recenter" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);background:none;border:none;cursor:pointer;border-top:1px solid var(--border);">${ICONS.recenter(14)}</button>
     </div>`;
 }
 
@@ -430,31 +498,31 @@ function renderBottomToolbar() {
   const selected = getItem(selectedId);
   const shapeMenu = shapeMenuOpen ? `
     <div class="fixed inset-0 z-10" data-action="close-shape-menu"></div>
-    <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-lg border border-slate-200 p-1.5 flex gap-1 z-20">
-      <button data-action="add-shape" data-shape="rect" class="flex flex-col items-center gap-1 px-3 py-2 rounded-lg hover:bg-slate-50 text-slate-600"><span>${ICONS.square(18)}</span><span class="text-[10px]">Rectangle</span></button>
-      <button data-action="add-shape" data-shape="circle" class="flex flex-col items-center gap-1 px-3 py-2 rounded-lg hover:bg-slate-50 text-slate-600"><span>${ICONS.circle(18)}</span><span class="text-[10px]">Cercle</span></button>
-      <button data-action="add-shape" data-shape="arrow" class="flex flex-col items-center gap-1 px-3 py-2 rounded-lg hover:bg-slate-50 text-slate-600"><span>${ICONS.arrow(18)}</span><span class="text-[10px]">Flèche</span></button>
+    <div style="position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:white;border-radius:12px;box-shadow:var(--shadow-lg);border:1px solid var(--border);padding:8px;display:flex;gap:4px;z-index:20;">
+      <button data-action="add-shape" data-shape="rect" class="tool-btn"><span>${ICONS.square(18)}</span><span>Rectangle</span></button>
+      <button data-action="add-shape" data-shape="circle" class="tool-btn"><span>${ICONS.circle(18)}</span><span>Cercle</span></button>
+      <button data-action="add-shape" data-shape="arrow" class="tool-btn"><span>${ICONS.arrow(18)}</span><span>Flèche</span></button>
     </div>` : "";
 
   const inspector = selected ? `
-    <div class="flex items-center gap-2 px-3 py-2 border-t border-slate-100 bg-slate-50 overflow-x-auto scrollbar-none">
-      ${selected.kind === "shape" ? `<input data-action="shape-label-input" data-item-id="${selected.id}" value="${esc(selected.label)}" placeholder="Légende" class="text-[13px] px-2 py-1 rounded border border-slate-200 outline-none focus:border-violet-400 w-28 shrink-0" />` : ""}
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--border);background:#fafafa;overflow-x:auto;" class="scrollbar-none">
+      ${selected.kind === "shape" ? `<input data-action="shape-label-input" data-item-id="${selected.id}" value="${esc(selected.label)}" placeholder="Légende" style="font-size:13px;padding:5px 10px;border-radius:6px;border:1px solid var(--border);outline:none;width:110px;flex-shrink:0;font-family:inherit;" />` : ""}
       ${(selected.kind === "shape" || selected.kind === "text") ? `
-        <div class="flex items-center gap-1 shrink-0">
-          ${SHAPE_COLORS.map(c => `<button data-action="set-color" data-item-id="${selected.id}" data-color="${c}" style="background:${c}" class="w-6 h-6 rounded-full border-2 ${selected.color === c ? "border-slate-800" : "border-white"} shrink-0"></button>`).join("")}
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+          ${SHAPE_COLORS.map(c => `<button data-action="set-color" data-item-id="${selected.id}" data-color="${c}" style="width:22px;height:22px;border-radius:50%;background:${c};border:2.5px solid ${selected.color === c ? "#1c1917" : "white"};box-shadow:0 1px 3px rgba(0,0,0,0.15);flex-shrink:0;cursor:pointer;"></button>`).join("")}
         </div>` : ""}
-      <button data-action="delete-item" data-item-id="${selected.id}" class="flex items-center gap-1 text-[12.5px] text-red-500 hover:text-red-700 ml-auto shrink-0 px-2">${ICONS.trash(14)} Supprimer</button>
+      <button data-action="delete-item" data-item-id="${selected.id}" style="display:flex;align-items:center;gap:5px;font-size:12px;color:#ef4444;margin-left:auto;flex-shrink:0;padding:5px 10px;border-radius:6px;background:none;border:1px solid #fee2e2;cursor:pointer;font-family:inherit;">${ICONS.trash(13)} Supprimer</button>
     </div>` : "";
 
   return `
-    <div class="shrink-0 bg-white border-t border-slate-200 relative">
+    <div class="shrink-0" style="background:var(--surface);border-top:1px solid var(--border);position:relative;">
       ${shapeMenu}
       ${inspector}
-      <div class="flex items-center justify-center gap-1 px-2 py-2" style="padding-bottom:max(8px,env(safe-area-inset-bottom));">
-        <button data-action="toggle-shape-menu" class="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg hover:bg-slate-50 text-slate-600">${ICONS.square(19)}<span class="text-[10px]">Forme</span></button>
-        <button data-action="add-text" class="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg hover:bg-slate-50 text-slate-600">${ICONS.type(19)}<span class="text-[10px]">Texte</span></button>
-        <button data-action="trigger-file" class="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg hover:bg-slate-50 text-slate-600">${ICONS.image(19)}<span class="text-[10px]">Photo</span></button>
-        <button data-action="add-table" class="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg hover:bg-slate-50 text-slate-600">${ICONS.table(19)}<span class="text-[10px]">Tableau</span></button>
+      <div style="display:flex;align-items:center;justify-content:center;gap:2px;padding:6px 8px;padding-bottom:max(8px,env(safe-area-inset-bottom));">
+        <button data-action="toggle-shape-menu" class="tool-btn">${ICONS.square(19)}<span>Forme</span></button>
+        <button data-action="add-text" class="tool-btn">${ICONS.type(19)}<span>Texte</span></button>
+        <button data-action="trigger-file" class="tool-btn">${ICONS.image(19)}<span>Photo</span></button>
+        <button data-action="add-table" class="tool-btn">${ICONS.table(19)}<span>Tableau</span></button>
         <input id="file-input" type="file" accept="image/*" class="hidden" />
       </div>
     </div>`;
