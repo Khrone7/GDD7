@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>GDD – Canvas Infini</title>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-
-<link rel="stylesheet" href="style.css?v=1">
+  <meta charset="UTF-8">
+  <title>GDD – Canvas Infini</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="GDD">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
 <!-- MENU LATERAL -->
@@ -16,27 +17,27 @@
 
   <div class="tool" id="addText">
     <div class="tool-icon">📝</div>
-    <div>Ajouter du texte</div>
+    <span class="tool-label">Ajouter du texte</span>
   </div>
 
   <div class="tool" id="addShape">
     <div class="tool-icon">⬛</div>
-    <div>Ajouter une forme</div>
+    <span class="tool-label">Ajouter une forme</span>
   </div>
 
   <div class="tool" id="addImage">
     <div class="tool-icon">🖼️</div>
-    <div>Importer une image</div>
+    <span class="tool-label">Importer une image</span>
   </div>
 
   <div class="tool" id="newPage">
     <div class="tool-icon">📄</div>
-    <div>Nouvelle page</div>
+    <span class="tool-label">Nouvelle page</span>
   </div>
 
   <div class="tool" id="toggleDark">
     <div class="tool-icon">🌙</div>
-    <div>Mode sombre</div>
+    <span class="tool-label">Mode sombre</span>
   </div>
 
   <h3>Pages</h3>
@@ -48,14 +49,9 @@
   <div id="canvas"></div>
 </div>
 
-<!-- MINI-MAP -->
-<canvas id="minimap"></canvas>
-
 <!-- IMPORT IMAGE -->
-<input type="file" id="fileInput" accept="image/*" style="display:none;">
+<input type="file" id="fileInput" accept="image/*" style="display:none">
 
-<!-- IMPORTANT : VERSION FORCÉE -->
-<script src="app.js?v=1"></script>
-
+<script src="app.js"></script>
 </body>
 </html>
