@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>GDD – Canvas Infini</title>
+  <title>GDD</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="GDD">
@@ -11,47 +11,50 @@
 </head>
 <body>
 
-<!-- MENU LATERAL -->
 <div id="sidebar">
-  <div id="toggleMenu">≡</div>
+  <div id="toggleMenu">☰</div>
 
-  <div class="tool" id="addText">
-    <div class="tool-icon">📝</div>
-    <span class="tool-label">Ajouter du texte</span>
+  <div class="tool" id="addText">✏️</div>
+
+  <div class="tool has-submenu" id="addShape">
+    ⬛
+    <div class="submenu" id="shapeMenu">
+      <div class="shape-opt" data-shape="rect">⬛ Rectangle</div>
+      <div class="shape-opt" data-shape="circle">⭕ Cercle</div>
+      <div class="shape-opt" data-shape="triangle">🔺 Triangle</div>
+      <div class="shape-opt" data-shape="diamond">🔷 Losange</div>
+      <div class="shape-opt" data-shape="arrow">➡️ Flèche</div>
+    </div>
   </div>
 
-  <div class="tool" id="addShape">
-    <div class="tool-icon">⬛</div>
-    <span class="tool-label">Ajouter une forme</span>
-  </div>
+  <div class="tool" id="addImage">🖼️</div>
+  <div class="tool" id="newPage">📄</div>
+  <div class="tool" id="toggleDark">🌙</div>
 
-  <div class="tool" id="addImage">
-    <div class="tool-icon">🖼️</div>
-    <span class="tool-label">Importer une image</span>
+  <div id="pageListWrap">
+    <div id="pageListLabel">Pages</div>
+    <div id="pageList"></div>
   </div>
-
-  <div class="tool" id="newPage">
-    <div class="tool-icon">📄</div>
-    <span class="tool-label">Nouvelle page</span>
-  </div>
-
-  <div class="tool" id="toggleDark">
-    <div class="tool-icon">🌙</div>
-    <span class="tool-label">Mode sombre</span>
-  </div>
-
-  <h3>Pages</h3>
-  <div id="pageList"></div>
 </div>
 
-<!-- CANVAS -->
 <div id="viewport">
   <div id="canvas"></div>
 </div>
 
-<!-- IMPORT IMAGE -->
-<input type="file" id="fileInput" accept="image/*" style="display:none">
+<!-- Panneau couleur flottant -->
+<div id="colorPanel">
+  <div class="color-swatch" data-color="#4A90D9"></div>
+  <div class="color-swatch" data-color="#E74C3C"></div>
+  <div class="color-swatch" data-color="#2ECC71"></div>
+  <div class="color-swatch" data-color="#F39C12"></div>
+  <div class="color-swatch" data-color="#9B59B6"></div>
+  <div class="color-swatch" data-color="#1ABC9C"></div>
+  <div class="color-swatch" data-color="#E8E8FF"></div>
+  <div class="color-swatch" data-color="#1a1a1a"></div>
+  <div class="color-swatch" data-color="#FFFFFF" style="border:1.5px solid #ccc"></div>
+</div>
 
+<input type="file" id="fileInput" accept="image/*" style="display:none">
 <script src="app.js"></script>
 </body>
 </html>
