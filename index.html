@@ -3,101 +3,150 @@
 <head>
 <meta charset="UTF-8">
 <title>GDD – Canvas Infini</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
 <style>
-  body {
-    margin: 0;
-    overflow: hidden;
-    font-family: Arial, sans-serif;
-    background: #e6e6e6;
-  }
+/* ------------------------------
+   STYLE GLOBAL
+--------------------------------*/
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+  background: #e6e6e6;
+  touch-action: none; /* empêche Safari de zoomer / scroller */
+}
 
-  /* MENU LATERAL LARGE */
-  #sidebar {
-    width: 260px;
-    height: 100vh;
-    background: #ffffff;
-    border-right: 1px solid #ccc;
-    padding: 20px;
-    position: fixed;
-    left: 0;
-    top: 0;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
+/* ------------------------------
+   MENU LATERAL LARGE
+--------------------------------*/
+#sidebar {
+  width: 260px;
+  height: 100vh;
+  background: #ffffff;
+  border-right: 1px solid #ccc;
+  padding: 20px;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 
-  .tool {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px;
-    background: #f5f5f5;
-    border-radius: 8px;
-    cursor: pointer;
-    border: 1px solid #ddd;
-  }
+.tool {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid #ddd;
+  user-select: none;
+}
 
-  .tool:hover {
-    background: #e9e9e9;
-  }
+.tool:hover {
+  background: #e9e9e9;
+}
 
-  .tool-icon {
-    font-size: 20px;
-  }
+.tool-icon {
+  font-size: 20px;
+}
 
-  /* CANVAS INFINI */
-  #viewport {
-    position: absolute;
-    left: 260px;
-    top: 0;
-    width: calc(100vw - 260px);
-    height: 100vh;
-    overflow: hidden;
-    cursor: grab;
-  }
+/* ------------------------------
+   CANVAS INFINI
+--------------------------------*/
+#viewport {
+  position: absolute;
+  left: 260px;
+  top: 0;
+  width: calc(100vw - 260px);
+  height: 100vh;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
 
-  #canvas {
-    width: 50000px;
-    height: 50000px;
-    background: #fafafa;
-    position: relative;
-    transform-origin: 0 0;
-  }
+#canvas {
+  width: 50000px;
+  height: 50000px;
+  background: #fafafa;
+  position: relative;
+  transform-origin: 0 0;
+}
 
-  /* ELEMENTS */
-  .node, .shape, .img-item {
-    position: absolute;
-    padding: 10px;
-    background: white;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    cursor: move;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-  }
+/* ------------------------------
+   ELEMENTS
+--------------------------------*/
+.node, .shape, .img-item {
+  position: absolute;
+  padding: 10px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  cursor: move;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  user-select: none;
+}
 
-  .node[contenteditable="true"] {
-    outline: none;
-  }
+.node[contenteditable="true"] {
+  outline: none;
+}
 
-  .shape {
-    width: 150px;
-    height: 80px;
-    background: #dfe8ff;
-  }
+.shape {
+  width: 150px;
+  height: 80px;
+  background: #dfe8ff;
+}
 
-  .page-selector {
-    background: #f5f5f5;
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid #ddd;
-    cursor: pointer;
-  }
+.img-item {
+  width: 200px;
+  height: auto;
+}
 
-  .page-selector:hover {
-    background: #e9e9e9;
-  }
+/* ------------------------------
+   MINI-MAP
+--------------------------------*/
+#minimap {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 160px;
+  height: 160px;
+  background: rgba(255,255,255,0.8);
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  z-index: 20;
+}
+
+/* ------------------------------
+   MODE SOMBRE
+--------------------------------*/
+.dark body {
+  background: #111;
+}
+
+.dark #sidebar {
+  background: #222;
+  color: white;
+}
+
+.dark .tool {
+  background: #333;
+  border-color: #444;
+}
+
+.dark #canvas {
+  background: #222;
+}
+
+.dark .node, .dark .shape {
+  background: #333;
+  color: white;
+  border-color: #555;
+}
 </style>
 </head>
 
@@ -126,6 +175,11 @@
     <div>Nouvelle page</div>
   </div>
 
+  <div class="tool" id="toggleDark">
+    <div class="tool-icon">🌙</div>
+    <div>Mode sombre</div>
+  </div>
+
   <h3>Pages</h3>
   <div id="pageList"></div>
 
@@ -135,6 +189,9 @@
 <div id="viewport">
   <div id="canvas"></div>
 </div>
+
+<!-- MINI-MAP -->
+<canvas id="minimap"></canvas>
 
 <input type="file" id="fileInput" accept="image/*" style="display:none;">
 
@@ -162,7 +219,7 @@ function refreshPageList() {
   pageList.innerHTML = "";
   Object.keys(pages).forEach(name => {
     const div = document.createElement("div");
-    div.className = "page-selector";
+    div.className = "tool";
     div.textContent = name;
     div.onclick = () => loadPage(name);
     pageList.appendChild(div);
@@ -176,11 +233,12 @@ function createPage() {
 }
 
 /* ------------------------------
-   CANVAS INFINI
+   CANVAS INFINI + TOUCH CONTROLS
 --------------------------------*/
 let offsetX = -24000;
 let offsetY = -24000;
 let scale = 1;
+
 let isPanning = false;
 let startX = 0, startY = 0;
 
@@ -188,61 +246,72 @@ function updateTransform() {
   canvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
 }
 
-viewport.addEventListener("mousedown", e => {
-  if (e.target !== viewport) return;
-  isPanning = true;
-  viewport.style.cursor = "grabbing";
-  startX = e.clientX - offsetX;
-  startY = e.clientY - offsetY;
+/* PAN AU DOIGT */
+viewport.addEventListener("touchstart", e => {
+  if (e.touches.length === 1) {
+    isPanning = true;
+    startX = e.touches[0].clientX - offsetX;
+    startY = e.touches[0].clientY - offsetY;
+  }
 });
 
-window.addEventListener("mousemove", e => {
-  if (!isPanning) return;
-  offsetX = e.clientX - startX;
-  offsetY = e.clientY - startY;
-  updateTransform();
-});
+/* PINCH ZOOM */
+let lastDist = 0;
 
-window.addEventListener("mouseup", () => {
-  isPanning = false;
-  viewport.style.cursor = "grab";
-});
-
-viewport.addEventListener("wheel", e => {
+viewport.addEventListener("touchmove", e => {
   e.preventDefault();
-  const zoomFactor = 1.1;
-  const oldScale = scale;
-  scale *= e.deltaY < 0 ? zoomFactor : 1 / zoomFactor;
-  scale = Math.min(Math.max(scale, 0.2), 3);
-  updateTransform();
+
+  if (e.touches.length === 1 && isPanning) {
+    offsetX = e.touches[0].clientX - startX;
+    offsetY = e.touches[0].clientY - startY;
+    updateTransform();
+  }
+
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+
+    if (lastDist !== 0) {
+      const delta = dist - lastDist;
+      scale += delta * 0.002;
+      scale = Math.min(Math.max(scale, 0.2), 3);
+      updateTransform();
+    }
+    lastDist = dist;
+  }
 }, { passive: false });
+
+viewport.addEventListener("touchend", () => {
+  isPanning = false;
+  lastDist = 0;
+});
 
 /* ------------------------------
    CREATION D’ELEMENTS
 --------------------------------*/
-function makeDraggable(el, data) {
+function makeDraggable(el) {
   let dragging = false;
   let sx = 0, sy = 0, ex = 0, ey = 0;
 
-  el.addEventListener("mousedown", e => {
+  el.addEventListener("touchstart", e => {
     dragging = true;
-    sx = e.clientX;
-    sy = e.clientY;
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
     ex = parseFloat(el.style.left);
     ey = parseFloat(el.style.top);
     e.stopPropagation();
   });
 
-  window.addEventListener("mousemove", e => {
+  el.addEventListener("touchmove", e => {
     if (!dragging) return;
-    const dx = (e.clientX - sx) / scale;
-    const dy = (e.clientY - sy) / scale;
+    const dx = (e.touches[0].clientX - sx) / scale;
+    const dy = (e.touches[0].clientY - sy) / scale;
     el.style.left = ex + dx + "px";
     el.style.top = ey + dy + "px";
   });
 
-  window.addEventListener("mouseup", () => {
-    if (!dragging) return;
+  el.addEventListener("touchend", () => {
     dragging = false;
     saveCurrentPage();
   });
@@ -255,36 +324,29 @@ function saveCurrentPage() {
     x: parseFloat(el.style.left),
     y: parseFloat(el.style.top),
     text: el.innerHTML,
-    width: el.style.width,
-    height: el.style.height,
     src: el.dataset.src || null
   }));
   savePages();
 }
 
 function restoreElement(data) {
-  if (data.type === "text") {
-    createText(data.x, data.y, data.text);
-  }
-  if (data.type === "shape") {
-    createShape(data.x, data.y);
-  }
-  if (data.type === "image") {
-    createImage(data.x, data.y, data.src);
-  }
+  if (data.type === "text") createText(data.x, data.y, data.text);
+  if (data.type === "shape") createShape(data.x, data.y);
+  if (data.type === "image") createImage(data.x, data.y, data.src);
 }
 
-function createText(x, y, content = "Double-clique pour écrire") {
+function createText(x, y, content = "Double-tap pour écrire") {
   const el = document.createElement("div");
   el.className = "node";
   el.dataset.type = "text";
   el.style.left = x + "px";
   el.style.top = y + "px";
-  el.contentEditable = true;
   el.innerHTML = content;
+  el.ontouchstart = () => {};
+  el.ondblclick = () => el.contentEditable = true;
+  el.oninput = saveCurrentPage;
   canvas.appendChild(el);
   makeDraggable(el);
-  el.oninput = saveCurrentPage;
 }
 
 function createShape(x, y) {
@@ -305,7 +367,6 @@ function createImage(x, y, src) {
   el.src = src;
   el.style.left = x + "px";
   el.style.top = y + "px";
-  el.style.width = "200px";
   canvas.appendChild(el);
   makeDraggable(el);
 }
@@ -325,6 +386,10 @@ fileInput.onchange = e => {
 };
 
 newPage.onclick = () => createPage();
+
+toggleDark.onclick = () => {
+  document.body.classList.toggle("dark");
+};
 
 /* ------------------------------
    INITIALISATION
