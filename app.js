@@ -1,3 +1,15 @@
+// Récupération des boutons
+const addText = document.getElementById("addText");
+const addShape = document.getElementById("addShape");
+const addImage = document.getElementById("addImage");
+const newPage = document.getElementById("newPage");
+const toggleDark = document.getElementById("toggleDark");
+const fileInput = document.getElementById("fileInput");
+const pageList = document.getElementById("pageList");
+const viewport = document.getElementById("viewport");
+const canvas = document.getElementById("canvas");
+
+
 /* ------------------------------
    MENU REPLIABLE
 --------------------------------*/
