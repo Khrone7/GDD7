@@ -1,11 +1,4 @@
 /* ------------------------------
-   DÉTECTEUR D’ERREURS iPHONE
---------------------------------*/
-window.onerror = function(msg, url, line, col, error) {
-  alert("ERREUR JS : " + msg + "\nLigne : " + line);
-};
-
-/* ------------------------------
    RÉCUPÉRATION DES ÉLÉMENTS HTML
 --------------------------------*/
 const sidebar = document.getElementById("sidebar");
@@ -25,9 +18,9 @@ const canvas = document.getElementById("canvas");
 /* ------------------------------
    MENU REPLIABLE
 --------------------------------*/
-toggleMenu.onclick = () => {
+toggleMenu.addEventListener("click", () => {
   sidebar.classList.toggle("collapsed");
-};
+});
 
 /* ------------------------------
    SYSTEME DE PAGES
@@ -54,7 +47,7 @@ function refreshPageList() {
     const div = document.createElement("div");
     div.className = "tool";
     div.textContent = name;
-    div.onclick = () => loadPage(name);
+    div.addEventListener("click", () => loadPage(name));
     pageList.appendChild(div);
   });
 }
@@ -79,7 +72,7 @@ function updateTransform() {
   canvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
 }
 
-/* PAN AU DOIGT */
+/* PAN */
 viewport.addEventListener("touchstart", e => {
   if (e.touches.length === 1) {
     isPanning = true;
