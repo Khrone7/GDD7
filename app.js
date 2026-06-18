@@ -20,14 +20,19 @@ const colorPanel  = document.getElementById("colorPanel");
 ================================*/
 let pages = {};
 try { pages = JSON.parse(localStorage.getItem("gdd_pages") || "{}"); } catch(e) { pages = {}; }
-let currentPage   = null;
-let selectedEl    = null; // élément forme sélectionné
+let pageOrder = [];
+try { pageOrder = JSON.parse(localStorage.getItem("gdd_order") || "[]"); } catch(e) { pageOrder = []; }
+let currentPage = null;
+let selectedEl  = null;
 
 /* ==============================
    SAUVEGARDE
 ================================*/
 function savePages() {
-  try { localStorage.setItem("gdd_pages", JSON.stringify(pages)); } catch(e) {}
+  try {
+    localStorage.setItem("gdd_pages", JSON.stringify(pages));
+    localStorage.setItem("gdd_order", JSON.stringify(pageOrder));
+  } catch(e) {}
 }
 
 function saveCurrentPage() {
@@ -82,36 +87,147 @@ function loadPage(name) {
   savePages();
 }
 
+function orderedPages() {
+  // pageOrder peut être incomplet si pages a été modifié hors ordre
+  const keys = Object.keys(pages);
+  const ordered = pageOrder.filter(n => keys.includes(n));
+  keys.forEach(k => { if (!ordered.includes(k)) ordered.push(k); });
+  pageOrder = ordered;
+  return ordered;
+}
+
 function refreshPageList() {
   pageList.innerHTML = "";
-  Object.keys(pages).forEach(name => {
+  orderedPages().forEach(name => {
     const row = document.createElement("div");
     row.className = "page-row" + (name === currentPage ? " active" : "");
+    row.dataset.page = name;
+    row.draggable = true;
 
+    /* --- Label cliquable / renommable --- */
     const label = document.createElement("span");
     label.className = "page-label";
     label.textContent = name;
+
+    // Tap simple = charger la page
     tap(label, () => loadPage(name));
 
+    // Double-tap / double-clic = renommer inline
     let lastTapT = 0;
+    const startRename = () => {
+      const input = document.createElement("input");
+      input.value = name;
+      input.className = "page-rename-input";
+      input.style.cssText = "flex:1;border:none;background:transparent;font-size:13px;font-weight:500;outline:none;color:inherit;width:100%;font-family:inherit;";
+      label.replaceWith(input);
+      input.focus();
+      input.select();
+      const commit = () => {
+        const newName = input.value.trim();
+        if (newName && newName !== name && !pages[newName]) {
+          pages[newName] = pages[name];
+          delete pages[name];
+          pageOrder = pageOrder.map(n => n === name ? newName : n);
+          if (currentPage === name) currentPage = newName;
+          savePages();
+          refreshPageList();
+        } else {
+          refreshPageList(); // annule
+        }
+      };
+      input.addEventListener("blur", commit);
+      input.addEventListener("keydown", e => {
+        if (e.key === "Enter") { input.blur(); }
+        if (e.key === "Escape") { name = name; refreshPageList(); }
+      });
+    };
     label.addEventListener("touchend", () => {
       const now = Date.now();
-      if (now - lastTapT < 350) renamePage(name);
+      if (now - lastTapT < 350) startRename();
       lastTapT = now;
     });
-    label.addEventListener("dblclick", () => renamePage(name));
+    label.addEventListener("dblclick", startRename);
 
+    /* --- Bouton supprimer --- */
     const del = document.createElement("button");
     del.className = "page-del";
     del.textContent = "✕";
     tap(del, e => {
       e && e.stopPropagation && e.stopPropagation();
-      if (Object.keys(pages).length <= 1) return;
+      if (orderedPages().length <= 1) return;
       if (!confirm("Supprimer \"" + name + "\" ?")) return;
       delete pages[name];
+      pageOrder = pageOrder.filter(n => n !== name);
       savePages();
-      if (currentPage === name) loadPage(Object.keys(pages)[0]);
+      if (currentPage === name) loadPage(orderedPages()[0]);
       else refreshPageList();
+    });
+
+    /* --- Drag & drop pour réordonner --- */
+    row.addEventListener("dragstart", e => {
+      e.dataTransfer.setData("text/plain", name);
+      row.style.opacity = "0.4";
+    });
+    row.addEventListener("dragend", () => { row.style.opacity = ""; });
+    row.addEventListener("dragover", e => {
+      e.preventDefault();
+      row.style.background = row.classList.contains("active") ? "" : "#eef";
+    });
+    row.addEventListener("dragleave", () => { row.style.background = ""; });
+    row.addEventListener("drop", e => {
+      e.preventDefault();
+      row.style.background = "";
+      const draggedName = e.dataTransfer.getData("text/plain");
+      if (draggedName === name) return;
+      const order = orderedPages();
+      const from  = order.indexOf(draggedName);
+      const to    = order.indexOf(name);
+      if (from === -1 || to === -1) return;
+      order.splice(from, 1);
+      order.splice(to, 0, draggedName);
+      pageOrder = order;
+      savePages();
+      refreshPageList();
+    });
+
+    // Réordonnement tactile (long press + glisser)
+    let touchDragActive = false, touchDragEl = null, touchDragName = null;
+    let longPressTimer = null;
+    row.addEventListener("touchstart", e => {
+      longPressTimer = setTimeout(() => {
+        touchDragActive = true;
+        touchDragName   = name;
+        touchDragEl     = row;
+        row.style.opacity = "0.45";
+        row.style.boxShadow = "0 4px 16px rgba(0,0,0,0.18)";
+      }, 400);
+    }, { passive: true });
+    row.addEventListener("touchmove", e => {
+      clearTimeout(longPressTimer);
+      if (!touchDragActive) return;
+      const touch = e.touches[0];
+      const els = document.elementsFromPoint(touch.clientX, touch.clientY);
+      const target = els.find(el => el.classList.contains("page-row") && el !== row);
+      if (target) {
+        const targetName = target.dataset.page;
+        const order = orderedPages();
+        const from  = order.indexOf(touchDragName);
+        const to    = order.indexOf(targetName);
+        if (from !== -1 && to !== -1 && from !== to) {
+          order.splice(from, 1);
+          order.splice(to, 0, touchDragName);
+          pageOrder = order;
+          refreshPageList();
+        }
+      }
+    }, { passive: true });
+    row.addEventListener("touchend", () => {
+      clearTimeout(longPressTimer);
+      if (touchDragActive) {
+        touchDragActive = false;
+        savePages();
+        refreshPageList();
+      }
     });
 
     row.appendChild(label);
@@ -120,19 +236,10 @@ function refreshPageList() {
   });
 }
 
-function renamePage(oldName) {
-  const n = prompt("Renommer :", oldName);
-  if (!n || n === oldName || pages[n] !== undefined) return;
-  pages[n] = pages[oldName];
-  delete pages[oldName];
-  if (currentPage === oldName) currentPage = n;
-  savePages();
-  refreshPageList();
-}
-
 function createPage() {
   const name = "Page " + (Object.keys(pages).length + 1);
   pages[name] = [];
+  pageOrder.push(name);
   loadPage(name);
 }
 
@@ -145,75 +252,45 @@ tap(toggleMenu, () => {
 });
 
 /* ==============================
-   CANVAS INFINI — PAN + PINCH + DOUBLE TAP
+   CANVAS INFINI — PAN + PINCH
 ================================*/
 let offsetX = -24000, offsetY = -24000, scale = 1;
 let isPanning = false, panSX = 0, panSY = 0;
-let lastPinchDist = 0, pinchMidX = 0, pinchMidY = 0;
+let lastPinchDist = 0;
+
+// Seuils pour distinguer pinch / double-tap
+let touchStartCount = 0;       // nbre de doigts au touchstart
+let touchWasPinch   = false;   // le dernier geste était un pinch
+let lastBgTap = 0;
 
 function updateTransform() {
-  canvas.style.transform = "translate("+offsetX+"px,"+offsetY+"px) scale("+scale+")";
-}
-
-// Double tap sur le fond → recentrer sur les objets
-let lastBgTap = 0;
-viewport.addEventListener("touchend", e => {
-  if (e.target !== viewport && e.target !== canvas) return;
-  const now = Date.now();
-  if (now - lastBgTap < 350) recenterOnContent();
-  lastBgTap = now;
-});
-
-function recenterOnContent() {
-  const items = [...canvas.children];
-  if (items.length === 0) { offsetX = -24000; offsetY = -24000; scale = 1; updateTransform(); return; }
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  items.forEach(el => {
-    const x = parseFloat(el.style.left) || 0;
-    const y = parseFloat(el.style.top)  || 0;
-    const w = parseFloat(el.style.width)  || 150;
-    const h = parseFloat(el.style.height) || 80;
-    if (x < minX) minX = x;
-    if (y < minY) minY = y;
-    if (x + w > maxX) maxX = x + w;
-    if (y + h > maxY) maxY = y + h;
-  });
-  const contentW = maxX - minX;
-  const contentH = maxY - minY;
-  const vw = viewport.clientWidth;
-  const vh = viewport.clientHeight;
-  const padding = 60;
-  const newScale = Math.min(3, Math.max(0.2, Math.min((vw - padding*2) / contentW, (vh - padding*2) / contentH)));
-  scale = newScale;
-  offsetX = vw/2 - (minX + contentW/2) * scale;
-  offsetY = vh/2 - (minY + contentH/2) * scale;
-  updateTransform();
+  canvas.style.transform = "translate(" + offsetX + "px," + offsetY + "px) scale(" + scale + ")";
 }
 
 viewport.addEventListener("touchstart", e => {
-  if (e.touches.length === 1) {
-    isPanning = true;
-    panSX = e.touches[0].clientX - offsetX;
-    panSY = e.touches[0].clientY - offsetY;
-  }
+  touchStartCount = e.touches.length;
   if (e.touches.length === 2) {
+    touchWasPinch = true;
     isPanning = false;
     const dx = e.touches[0].clientX - e.touches[1].clientX;
     const dy = e.touches[0].clientY - e.touches[1].clientY;
     lastPinchDist = Math.sqrt(dx*dx + dy*dy);
-    pinchMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-    pinchMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+  } else if (e.touches.length === 1) {
+    isPanning = true;
+    panSX = e.touches[0].clientX - offsetX;
+    panSY = e.touches[0].clientY - offsetY;
   }
 }, { passive: true });
 
 viewport.addEventListener("touchmove", e => {
   e.preventDefault();
-  if (e.touches.length === 1 && isPanning) {
+  if (e.touches.length === 1 && isPanning && !touchWasPinch) {
     offsetX = e.touches[0].clientX - panSX;
     offsetY = e.touches[0].clientY - panSY;
     updateTransform();
   }
   if (e.touches.length === 2) {
+    touchWasPinch = true;
     const dx   = e.touches[0].clientX - e.touches[1].clientX;
     const dy   = e.touches[0].clientY - e.touches[1].clientY;
     const dist = Math.sqrt(dx*dx + dy*dy);
@@ -231,7 +308,43 @@ viewport.addEventListener("touchmove", e => {
   }
 }, { passive: false });
 
-viewport.addEventListener("touchend", () => { isPanning = false; lastPinchDist = 0; });
+viewport.addEventListener("touchend", e => {
+  isPanning = false;
+  if (e.touches.length === 0) {
+    // double-tap recentrer UNIQUEMENT si ce n'était pas un pinch
+    if (!touchWasPinch) {
+      const now = Date.now();
+      if (e.target === viewport || e.target === canvas) {
+        if (now - lastBgTap < 320) recenterOnContent();
+        lastBgTap = now;
+      }
+    }
+    lastPinchDist = 0;
+    // reset après un léger délai (les doigts se lèvent en décalé)
+    setTimeout(() => { touchWasPinch = false; }, 80);
+  }
+});
+
+function recenterOnContent() {
+  const items = [...canvas.children];
+  if (items.length === 0) { offsetX = -24000; offsetY = -24000; scale = 1; updateTransform(); return; }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  items.forEach(el => {
+    const x = parseFloat(el.style.left) || 0;
+    const y = parseFloat(el.style.top)  || 0;
+    const w = parseFloat(el.style.width)  || 150;
+    const h = parseFloat(el.style.height) || 80;
+    if (x < minX) minX = x; if (y < minY) minY = y;
+    if (x + w > maxX) maxX = x + w; if (y + h > maxY) maxY = y + h;
+  });
+  const cW = maxX - minX, cH = maxY - minY;
+  const vw = viewport.clientWidth, vh = viewport.clientHeight;
+  const pad = 60;
+  scale = Math.min(3, Math.max(0.2, Math.min((vw - pad*2) / cW, (vh - pad*2) / cH)));
+  offsetX = vw/2 - (minX + cW/2) * scale;
+  offsetY = vh/2 - (minY + cH/2) * scale;
+  updateTransform();
+}
 
 function viewCenter() {
   return {
@@ -260,7 +373,6 @@ function makeDraggable(el) {
 
   el.addEventListener("touchstart", e => {
     if (e.touches.length !== 1) return;
-    // ne pas démarrer le drag si on touche un handle ou bouton
     if (e.target.classList.contains("handle") || e.target.classList.contains("el-delete")) return;
     active = true;
     sx = e.touches[0].clientX; sy = e.touches[0].clientY;
@@ -295,22 +407,21 @@ function addDeleteButton(wrapper) {
 }
 
 /* ==============================
-   TEXTE — pincer la bulle pour changer la taille
+   TEXTE
 ================================*/
 function createText(x, y, content, fontSize) {
   if (content === undefined) content = "Double-tap pour écrire";
   if (!fontSize) fontSize = "16";
 
   const el = document.createElement("div");
-  el.className     = "node";
-  el.dataset.type  = "text";
+  el.className        = "node";
+  el.dataset.type     = "text";
   el.dataset.fontSize = fontSize;
-  el.style.left    = x + "px";
-  el.style.top     = y + "px";
-  el.style.fontSize = fontSize + "px";
-  el.innerHTML     = content;
+  el.style.left       = x + "px";
+  el.style.top        = y + "px";
+  el.style.fontSize   = fontSize + "px";
+  el.innerHTML        = content;
 
-  // Double tap → éditer
   let lastTap = 0;
   el.addEventListener("touchend", e => {
     const now = Date.now();
@@ -318,10 +429,10 @@ function createText(x, y, content, fontSize) {
     lastTap = now;
   });
   el.addEventListener("dblclick", () => { el.contentEditable = "true"; el.focus(); });
-  el.addEventListener("blur", () => { el.contentEditable = "false"; saveCurrentPage(); });
+  el.addEventListener("blur",  () => { el.contentEditable = "false"; saveCurrentPage(); });
   el.addEventListener("input", saveCurrentPage);
 
-  // Pinch sur la bulle = modifier la taille du texte
+  // Pinch sur la bulle = changer taille police
   let pinchStartDist = 0, pinchStartSize = 0;
   el.addEventListener("touchstart", e => {
     if (e.touches.length === 2) {
@@ -329,27 +440,21 @@ function createText(x, y, content, fontSize) {
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       pinchStartDist = Math.sqrt(dx*dx + dy*dy);
       pinchStartSize = parseFloat(el.dataset.fontSize) || 16;
-      e.stopPropagation();
-      e.preventDefault();
+      e.stopPropagation(); e.preventDefault();
     }
   }, { passive: false });
-
   el.addEventListener("touchmove", e => {
     if (e.touches.length === 2 && pinchStartDist > 0) {
-      const dx   = e.touches[0].clientX - e.touches[1].clientX;
-      const dy   = e.touches[0].clientY - e.touches[1].clientY;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
       const dist = Math.sqrt(dx*dx + dy*dy);
       const newSize = Math.min(72, Math.max(10, pinchStartSize * (dist / pinchStartDist)));
-      el.style.fontSize = newSize + "px";
+      el.style.fontSize   = newSize + "px";
       el.dataset.fontSize = Math.round(newSize);
-      e.stopPropagation();
-      e.preventDefault();
+      e.stopPropagation(); e.preventDefault();
     }
   }, { passive: false });
-
-  el.addEventListener("touchend", e => {
-    if (pinchStartDist > 0) { pinchStartDist = 0; saveCurrentPage(); }
-  });
+  el.addEventListener("touchend", () => { if (pinchStartDist > 0) { pinchStartDist = 0; saveCurrentPage(); } });
 
   addDeleteButton(el);
   canvas.appendChild(el);
@@ -357,41 +462,41 @@ function createText(x, y, content, fontSize) {
 }
 
 /* ==============================
-   FORMES — resize + rotation tactile
+   FORMES
 ================================*/
 function applyShape(el, shape, color, w, h, rotation) {
-  el.style.width    = w + "px";
-  el.style.height   = h + "px";
+  el.style.width      = w + "px";
+  el.style.height     = h + "px";
   el.style.background = color;
   el.style.transform  = "rotate(" + rotation + "deg)";
   el.dataset.color    = color;
   el.dataset.rotation = rotation;
 
-  if (shape === "circle")   { el.style.borderRadius = "50%"; }
-  else if (shape === "triangle") {
-    el.style.background  = "transparent";
-    el.style.borderLeft  = (w/2) + "px solid transparent";
-    el.style.borderRight = (w/2) + "px solid transparent";
-    el.style.borderBottom= h + "px solid " + color;
-    el.style.borderRadius= "0";
+  if (shape === "circle") {
+    el.style.borderRadius = "50%";
+  } else if (shape === "triangle") {
+    el.style.background   = "transparent";
+    el.style.borderLeft   = (w/2) + "px solid transparent";
+    el.style.borderRight  = (w/2) + "px solid transparent";
+    el.style.borderBottom = h + "px solid " + color;
+    el.style.borderRadius = "0";
     el.style.width = "0"; el.style.height = "0";
     el.dataset.triW = w; el.dataset.triH = h;
-  }
-  else if (shape === "diamond") {
+  } else if (shape === "diamond") {
     el.style.borderRadius = "0";
-    el.style.transform = "rotate(" + (rotation+45) + "deg)";
-  }
-  else if (shape === "arrow") {
-    el.style.background = "transparent";
+    el.style.transform    = "rotate(" + (rotation + 45) + "deg)";
+  } else if (shape === "arrow") {
+    el.style.background   = "transparent";
     el.style.borderRadius = "0";
     el.innerHTML = el.innerHTML.replace(/<svg[\s\S]*<\/svg>/, "");
-    const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("width","100%"); svg.setAttribute("height","100%");
     svg.setAttribute("viewBox","0 0 100 40"); svg.setAttribute("preserveAspectRatio","none");
     svg.innerHTML = '<line x1="5" y1="20" x2="80" y2="20" stroke="'+color+'" stroke-width="5" stroke-linecap="round"/><polygon points="72,8 100,20 72,32" fill="'+color+'"/>';
     el.appendChild(svg);
+  } else {
+    el.style.borderRadius = "10px";
   }
-  else { el.style.borderRadius = "10px"; }
 }
 
 function createShape(shape, x, y, color, w, h, rotation) {
@@ -401,65 +506,51 @@ function createShape(shape, x, y, color, w, h, rotation) {
   if (!rotation) rotation = 0;
 
   const el = document.createElement("div");
-  el.className      = "shape-el";
-  el.dataset.type   = "shape";
-  el.dataset.shape  = shape;
-  el.style.left     = x + "px";
-  el.style.top      = y + "px";
+  el.className     = "shape-el";
+  el.dataset.type  = "shape";
+  el.dataset.shape = shape;
+  el.style.left    = x + "px";
+  el.style.top     = y + "px";
   applyShape(el, shape, color, w, h, rotation);
 
-  // Sélection → afficher panneau couleur
-  tap(el, e => {
-    e && e.stopPropagation && e.stopPropagation();
-    selectShape(el);
-  });
+  tap(el, e => { e && e.stopPropagation && e.stopPropagation(); selectShape(el); });
 
-  // Handle resize (coin bas-droite)
+  // Resize
   const hResize = document.createElement("div");
   hResize.className = "handle handle-resize";
   hResize.textContent = "↘";
-
   let rsx = 0, rsy = 0, rw0 = 0, rh0 = 0;
   hResize.addEventListener("touchstart", e => {
     rsx = e.touches[0].clientX; rsy = e.touches[0].clientY;
-    rw0 = parseFloat(el.style.width)  || w;
-    rh0 = parseFloat(el.style.height) || h;
+    rw0 = parseFloat(el.style.width)||w; rh0 = parseFloat(el.style.height)||h;
     e.stopPropagation(); e.preventDefault();
   }, { passive: false });
   hResize.addEventListener("touchmove", e => {
-    const nw = Math.max(40, rw0 + (e.touches[0].clientX - rsx) / scale);
-    const nh = Math.max(30, rh0 + (e.touches[0].clientY - rsy) / scale);
-    const rot = parseFloat(el.dataset.rotation)||0;
-    const col = el.dataset.color||color;
-    applyShape(el, shape, col, nw, nh, rot);
+    const nw  = Math.max(40, rw0 + (e.touches[0].clientX - rsx) / scale);
+    const nh  = Math.max(30, rh0 + (e.touches[0].clientY - rsy) / scale);
+    applyShape(el, shape, el.dataset.color||color, nw, nh, parseFloat(el.dataset.rotation)||0);
     e.stopPropagation(); e.preventDefault();
   }, { passive: false });
   hResize.addEventListener("touchend", () => saveCurrentPage());
 
-  // Handle rotation (coin bas-gauche)
+  // Rotation
   const hRotate = document.createElement("div");
   hRotate.className = "handle handle-rotate";
   hRotate.textContent = "↺";
-
   let rotStartAngle = 0, rotStartRot = 0;
   hRotate.addEventListener("touchstart", e => {
     const rect = el.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top  + rect.height / 2;
+    const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
     rotStartAngle = Math.atan2(e.touches[0].clientY - cy, e.touches[0].clientX - cx) * 180 / Math.PI;
     rotStartRot   = parseFloat(el.dataset.rotation) || 0;
     e.stopPropagation(); e.preventDefault();
   }, { passive: false });
   hRotate.addEventListener("touchmove", e => {
     const rect = el.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top  + rect.height / 2;
-    const angle = Math.atan2(e.touches[0].clientY - cy, e.touches[0].clientX - cx) * 180 / Math.PI;
+    const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+    const angle  = Math.atan2(e.touches[0].clientY - cy, e.touches[0].clientX - cx) * 180 / Math.PI;
     const newRot = rotStartRot + (angle - rotStartAngle);
-    const col = el.dataset.color || color;
-    const nw  = parseFloat(el.style.width)  || w;
-    const nh  = parseFloat(el.style.height) || h;
-    applyShape(el, shape, col, nw, nh, newRot);
+    applyShape(el, shape, el.dataset.color||color, parseFloat(el.style.width)||w, parseFloat(el.style.height)||h, newRot);
     e.stopPropagation(); e.preventDefault();
   }, { passive: false });
   hRotate.addEventListener("touchend", () => saveCurrentPage());
@@ -475,7 +566,6 @@ function selectShape(el) {
   if (selectedEl) selectedEl.classList.remove("selected");
   selectedEl = el;
   el.classList.add("selected");
-  // Positionner le panneau couleur près de la forme
   const rect = el.getBoundingClientRect();
   colorPanel.style.top  = Math.min(window.innerHeight - 120, rect.bottom + 10) + "px";
   colorPanel.style.left = Math.max(70, Math.min(window.innerWidth - 200, rect.left)) + "px";
@@ -487,7 +577,6 @@ function hideColorPanel() {
   if (selectedEl) { selectedEl.classList.remove("selected"); selectedEl = null; }
 }
 
-// Swatches couleur
 document.querySelectorAll(".color-swatch").forEach(sw => {
   tap(sw, () => {
     if (!selectedEl) return;
@@ -501,11 +590,11 @@ document.querySelectorAll(".color-swatch").forEach(sw => {
   });
 });
 
-// Clic fond = désélectionner
 tap(viewport, () => hideColorPanel());
 
 /* ==============================
-   IMAGE — import base64
+   IMAGE — CORRIGÉ
+   Utilise un input file classique sans interférence tap()
 ================================*/
 function createImage(x, y, src, w, h) {
   const wrapper = document.createElement("div");
@@ -518,8 +607,8 @@ function createImage(x, y, src, w, h) {
   const img = document.createElement("img");
   img.src       = src;
   img.draggable = false;
-  if (w) img.style.maxWidth  = w + "px";
-  if (h) img.style.maxHeight = h + "px";
+  if (w) { img.style.maxWidth = w + "px"; wrapper.style.width = w + "px"; }
+  if (h) { img.style.maxHeight = h + "px"; wrapper.style.height = h + "px"; }
   wrapper.appendChild(img);
 
   addDeleteButton(wrapper);
@@ -527,10 +616,16 @@ function createImage(x, y, src, w, h) {
   makeDraggable(wrapper);
 }
 
-tap(addImageBtn, () => fileInput.click());
+// On utilise un click natif pour l'input file (tap() bloquait le picker sur iOS)
+addImageBtn.addEventListener("click", () => fileInput.click());
+addImageBtn.addEventListener("touchend", e => {
+  e.preventDefault();
+  e.stopPropagation();
+  fileInput.click();
+}, { passive: false });
 
 fileInput.addEventListener("change", e => {
-  const file = e.target.files[0];
+  const file = e.target.files && e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
@@ -579,10 +674,13 @@ tap(toggleDark,  () => document.body.classList.toggle("dark"));
 /* ==============================
    INIT
 ================================*/
+// Récupérer l'ordre sauvegardé ou l'inférer depuis les clés
+if (pageOrder.length === 0) pageOrder = Object.keys(pages);
+
 if (Object.keys(pages).length === 0) {
   createPage();
 } else {
-  loadPage(Object.keys(pages)[0]);
+  loadPage(orderedPages()[0]);
 }
 
 updateTransform();
