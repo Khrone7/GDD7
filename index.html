@@ -59,20 +59,21 @@
   <div id="canvas"></div>
 </div>
 
-<!-- Bandeau mode actif (sélection / connecteur / étiquette) -->
+<!-- Bandeau mode actif -->
 <div id="modeBanner">
   <span id="modeBannerText"></span>
   <button id="modeBannerCancel">Annuler</button>
 </div>
 
-<!-- Barre d'action flottante quand sélection multiple active -->
+<!-- Barre d'action sélection multiple -->
 <div id="selectionBar">
   <span id="selectionCount">0 sélectionné(s)</span>
   <button id="groupBtn">Grouper</button>
-  <button id="ungroupBtn">Dégrouper</button>
+  <button id="addToGroupBtn">Ajouter au groupe</button>
+  <button id="removeFromGroupBtn">Retirer du groupe</button>
 </div>
 
-<!-- Panneau couleur flottant -->
+<!-- Panneau couleur forme -->
 <div id="colorPanel">
   <div class="color-swatch" data-color="#4A90D9"></div>
   <div class="color-swatch" data-color="#E74C3C"></div>
@@ -85,7 +86,7 @@
   <div class="color-swatch" data-color="#FFFFFF" style="border:1.5px solid #ccc"></div>
 </div>
 
-<!-- Panneau étiquette flottant -->
+<!-- Panneau étiquette -->
 <div id="tagPanel">
   <input type="text" id="tagInput" placeholder="Texte de l'étiquette" maxlength="24">
   <div class="tag-colors">
@@ -99,6 +100,37 @@
   <div class="tag-actions">
     <button id="tagRemove">Retirer l'étiquette</button>
     <button id="tagDone">OK</button>
+  </div>
+</div>
+
+<!-- Panneau style checklist (couleur du bloc) -->
+<div id="checklistStylePanel">
+  <div class="cl-style-label">Couleur du bloc</div>
+  <div class="tag-colors">
+    <div class="color-swatch cl-color" data-color="#fffdf2" data-border="#f0e6c0"></div>
+    <div class="color-swatch cl-color" data-color="#eef6ff" data-border="#c5dffb" style="background:#eef6ff"></div>
+    <div class="color-swatch cl-color" data-color="#f3fdf3" data-border="#c7ecc9" style="background:#f3fdf3"></div>
+    <div class="color-swatch cl-color" data-color="#fff0f0" data-border="#f5c7c7" style="background:#fff0f0"></div>
+    <div class="color-swatch cl-color" data-color="#f6f0fb" data-border="#ddc6f0" style="background:#f6f0fb"></div>
+    <div class="color-swatch cl-color" data-color="#ffffff" data-border="#e0e0e0" style="background:#ffffff;border:1.5px solid #ddd"></div>
+  </div>
+  <button id="checklistStyleDone">OK</button>
+</div>
+
+<!-- Panneau style groupe (couleur du cadre) -->
+<div id="groupStylePanel">
+  <div class="cl-style-label">Couleur du groupe</div>
+  <div class="tag-colors">
+    <div class="color-swatch grp-color" data-color="#9b9bdc"></div>
+    <div class="color-swatch grp-color" data-color="#4A90D9"></div>
+    <div class="color-swatch grp-color" data-color="#E74C3C"></div>
+    <div class="color-swatch grp-color" data-color="#2ECC71"></div>
+    <div class="color-swatch grp-color" data-color="#F39C12"></div>
+    <div class="color-swatch grp-color" data-color="#888888"></div>
+  </div>
+  <div class="tag-actions">
+    <button id="groupRename">Renommer</button>
+    <button id="groupStyleDone">OK</button>
   </div>
 </div>
 
