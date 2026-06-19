@@ -35,14 +35,34 @@ const removeFromGroupBtn = document.getElementById("removeFromGroupBtn");
 const checklistStylePanel = document.getElementById("checklistStylePanel");
 const groupStylePanel  = document.getElementById("groupStylePanel");
 const groupRenameBtn   = document.getElementById("groupRename");
+const projectScreen    = document.getElementById("projectScreen");
+const projectList      = document.getElementById("projectList");
+const newProjectBtn    = document.getElementById("newProjectBtn");
+const backToProjectsBtn= document.getElementById("backToProjects");
+const saveNowBtn       = document.getElementById("saveNowBtn");
 
 /* ==============================
-   ÉTAT GLOBAL
+   MULTI-PROJETS — stockage
+   Clé "gdd_projects_list" : tableau de { id, name, updatedAt }
+   Clé "gdd_project_<id>"  : { pages, order }
+================================*/
+const PROJECTS_KEY = "gdd_projects_list";
+
+function loadProjectsList() {
+  try { return JSON.parse(localStorage.getItem(PROJECTS_KEY) || "[]"); } catch(e) { return []; }
+}
+function saveProjectsList(list) {
+  try { localStorage.setItem(PROJECTS_KEY, JSON.stringify(list)); } catch(e) {}
+}
+function projectStorageKey(id) { return "gdd_project_" + id; }
+
+let currentProjectId = null;
+
+/* ==============================
+   ÉTAT GLOBAL (projet courant)
 ================================*/
 let pages = {};
-try { pages = JSON.parse(localStorage.getItem("gdd_pages") || "{}"); } catch(e) { pages = {}; }
 let pageOrder = [];
-try { pageOrder = JSON.parse(localStorage.getItem("gdd_order") || "[]"); } catch(e) { pageOrder = []; }
 let currentPage = null;
 let selectedEl  = null;
 let elIdCounter = 1;
@@ -70,18 +90,105 @@ function tap(el, fn) {
    SAUVEGARDE / SÉRIALISATION
 ================================*/
 function savePages() {
+  if (!currentProjectId) return;
   try {
-    localStorage.setItem("gdd_pages", JSON.stringify(pages));
-    localStorage.setItem("gdd_order", JSON.stringify(pageOrder));
+    localStorage.setItem(projectStorageKey(currentProjectId), JSON.stringify({ pages, order: pageOrder }));
+    touchProjectTimestamp(currentProjectId);
   } catch(e) {}
 }
+
+function touchProjectTimestamp(id) {
+  const list = loadProjectsList();
+  const entry = list.find(p => p.id === id);
+  if (entry) { entry.updatedAt = Date.now(); saveProjectsList(list); }
+}
+
+/* ==============================
+   GESTION DES PROJETS
+================================*/
+function uidProject() { return "p" + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function renderProjectScreen() {
+  const list = loadProjectsList().sort((a,b) => (b.updatedAt||0) - (a.updatedAt||0));
+  projectList.innerHTML = "";
+  if (!list.length) {
+    const empty = document.createElement("div");
+    empty.id = "projectScreenEmpty";
+    empty.textContent = "Aucun projet pour l'instant. Crée le premier !";
+    projectList.appendChild(empty);
+    return;
+  }
+  list.forEach(p => {
+    const row = document.createElement("div");
+    row.className = "project-row";
+    const left = document.createElement("div");
+    const name = document.createElement("div");
+    name.className = "project-row-name";
+    name.textContent = p.name;
+    const meta = document.createElement("div");
+    meta.className = "project-row-meta";
+    meta.textContent = p.updatedAt ? "Modifié le " + new Date(p.updatedAt).toLocaleDateString() : "";
+    left.appendChild(name); left.appendChild(meta);
+
+    const del = document.createElement("button");
+    del.className = "project-row-del";
+    del.textContent = "✕";
+    tap(del, e => {
+      e && e.stopPropagation && e.stopPropagation();
+      if (!confirm("Supprimer le projet \"" + p.name + "\" ? Cette action est irréversible.")) return;
+      localStorage.removeItem(projectStorageKey(p.id));
+      saveProjectsList(loadProjectsList().filter(x => x.id !== p.id));
+      renderProjectScreen();
+    });
+
+    tap(row, () => openProject(p.id));
+    row.appendChild(left);
+    row.appendChild(del);
+    projectList.appendChild(row);
+  });
+}
+
+function openProject(id) {
+  currentProjectId = id;
+  let data = { pages: {}, order: [] };
+  try { data = JSON.parse(localStorage.getItem(projectStorageKey(id))) || data; } catch(e) {}
+  pages = data.pages || {};
+  pageOrder = data.order || [];
+  document.body.classList.remove("no-project");
+  if (!Object.keys(pages).length) { createPage(); } else { loadPage((pageOrder.length?pageOrder:Object.keys(pages))[0]); }
+}
+
+function createNewProject() {
+  const name = prompt("Nom du projet :", "Mon jeu");
+  if (!name) return;
+  const id = uidProject();
+  const list = loadProjectsList();
+  list.push({ id, name, updatedAt: Date.now() });
+  saveProjectsList(list);
+  localStorage.setItem(projectStorageKey(id), JSON.stringify({ pages: {}, order: [] }));
+  openProject(id);
+}
+
+function backToProjectsScreen() {
+  currentProjectId = null;
+  document.body.classList.add("no-project");
+  renderProjectScreen();
+}
+
+tap(newProjectBtn, () => createNewProject());
+tap(backToProjectsBtn, () => backToProjectsScreen());
+tap(saveNowBtn, () => {
+  saveCurrentPage(false);
+  saveNowBtn.textContent = "✅";
+  setTimeout(() => { saveNowBtn.textContent = "💾"; }, 900);
+});
 
 function nextElId() { return "el" + (elIdCounter++); }
 
 function serializeCanvas() {
   const items = [...canvas.querySelectorAll(":scope > .node, :scope > .shape-el, :scope > .img-wrapper, :scope > .checklist-el")]
     .map(el => serializeEl(el));
-  const links = [...linksLayer.querySelectorAll("line[data-from]")].map(line => ({ from: line.dataset.from, to: line.dataset.to }));
+  const links = [...linksLayer.querySelectorAll("g[data-from]")].map(g => ({ from: g.dataset.from, to: g.dataset.to }));
   const groups = [...canvas.querySelectorAll(":scope > .group-frame")].map(g => ({
     id: g.dataset.id, label: g.dataset.label || "Groupe", color: g.dataset.color || "#9b9bdc",
     x: parseFloat(g.style.left)||0, y: parseFloat(g.style.top)||0,
@@ -436,7 +543,11 @@ viewport.addEventListener("touchmove", e => {
     const dy = e.touches[0].clientY - e.touches[1].clientY;
     const dist = Math.sqrt(dx*dx+dy*dy);
     if (lastPinchDist !== 0) {
-      const midX=(e.touches[0].clientX+e.touches[1].clientX)/2, midY=(e.touches[0].clientY+e.touches[1].clientY)/2;
+      const rect = viewport.getBoundingClientRect();
+      // midX/midY doivent être relatifs au viewport (pas à l'écran entier),
+      // sinon le pivot du zoom est décalé de la largeur de la sidebar et le zoom dérive vers le centre.
+      const midX = (e.touches[0].clientX + e.touches[1].clientX)/2 - rect.left;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY)/2 - rect.top;
       const wX=(midX-offsetX)/scale, wY=(midY-offsetY)/scale;
       scale = Math.min(3, Math.max(0.2, scale*(dist/lastPinchDist)));
       offsetX = midX - wX*scale; offsetY = midY - wY*scale;
@@ -849,35 +960,81 @@ function handleLinkTap(el) {
   updateModeBanner();
   saveCurrentPage();
 }
-function elCenter(el) {
+function elRect(el) {
   return {
-    x: (parseFloat(el.style.left)||0) + (parseFloat(el.style.width)||el.offsetWidth||100)/2,
-    y: (parseFloat(el.style.top)||0)  + (parseFloat(el.style.height)||el.offsetHeight||40)/2
+    x: parseFloat(el.style.left)||0,
+    y: parseFloat(el.style.top)||0,
+    w: parseFloat(el.style.width)||el.offsetWidth||100,
+    h: parseFloat(el.style.height)||el.offsetHeight||40
   };
+}
+function elCenter(el) {
+  const r = elRect(el);
+  return { x: r.x + r.w/2, y: r.y + r.h/2 };
+}
+// Point d'intersection entre le segment [centre -> versPoint] et le bord du rectangle de el.
+// Permet à la ligne de partir/arriver sur le contour de la forme plutôt que sur son centre.
+function edgePoint(el, towardX, towardY) {
+  const r = elRect(el);
+  const cx = r.x + r.w/2, cy = r.y + r.h/2;
+  const dx = towardX - cx, dy = towardY - cy;
+  if (dx === 0 && dy === 0) return { x: cx, y: cy };
+  const halfW = r.w/2, halfH = r.h/2;
+  // Facteur d'échelle pour atteindre le bord vertical ou horizontal du rectangle, le plus petit l'emporte
+  const scaleX = halfW / Math.abs(dx || 1e-6);
+  const scaleY = halfH / Math.abs(dy || 1e-6);
+  const t = Math.min(scaleX, scaleY);
+  return { x: cx + dx*t, y: cy + dy*t };
 }
 function drawLink(fromId, toId) {
   const fromEl = canvas.querySelector('[data-id="'+fromId+'"]');
   const toEl   = canvas.querySelector('[data-id="'+toId+'"]');
   if (!fromEl || !toEl) return;
+  const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  group.dataset.from = fromId; group.dataset.to = toId;
+
   const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
   line.setAttribute("stroke", "#9b9bdc");
   line.setAttribute("stroke-width", "2.5");
-  line.dataset.from = fromId; line.dataset.to = toId;
-  linksLayer.appendChild(line);
-  updateLinkLine(line);
+
+  const head = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+  head.setAttribute("fill", "#9b9bdc");
+
+  group.appendChild(line);
+  group.appendChild(head);
+  linksLayer.appendChild(group);
+  updateLinkLine(group);
 }
-function updateLinkLine(line) {
-  const fromEl = canvas.querySelector('[data-id="'+line.dataset.from+'"]');
-  const toEl   = canvas.querySelector('[data-id="'+line.dataset.to+'"]');
-  if (!fromEl || !toEl) { line.remove(); return; }
+function updateLinkLine(group) {
+  const fromEl = canvas.querySelector('[data-id="'+group.dataset.from+'"]');
+  const toEl   = canvas.querySelector('[data-id="'+group.dataset.to+'"]');
+  if (!fromEl || !toEl) { group.remove(); return; }
+
   const c1 = elCenter(fromEl), c2 = elCenter(toEl);
-  line.setAttribute("x1", c1.x); line.setAttribute("y1", c1.y);
-  line.setAttribute("x2", c2.x); line.setAttribute("y2", c2.y);
+  // Bord de départ : vers le centre de l'élément d'arrivée
+  const p1 = edgePoint(fromEl, c2.x, c2.y);
+  // Bord d'arrivée : vers le centre de l'élément de départ (donc côté tourné vers la source)
+  const p2 = edgePoint(toEl, c1.x, c1.y);
+
+  const line = group.querySelector("line");
+  line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
+  line.setAttribute("x2", p2.x); line.setAttribute("y2", p2.y);
+
+  // Pointe de flèche orientée selon la direction d'arrivée réelle (p1 -> p2)
+  const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+  const headLen = 11, headWidth = 7;
+  const bx = p2.x - Math.cos(angle)*headLen, by = p2.y - Math.sin(angle)*headLen;
+  const leftX  = bx + Math.cos(angle + Math.PI/2)*headWidth;
+  const leftY  = by + Math.sin(angle + Math.PI/2)*headWidth;
+  const rightX = bx + Math.cos(angle - Math.PI/2)*headWidth;
+  const rightY = by + Math.sin(angle - Math.PI/2)*headWidth;
+  const head = group.querySelector("polygon");
+  head.setAttribute("points", p2.x+","+p2.y+" "+leftX+","+leftY+" "+rightX+","+rightY);
 }
 let linksRaf = null;
 function scheduleLinksRedraw() {
   if (linksRaf) return;
-  linksRaf = requestAnimationFrame(() => { linksRaf = null; linksLayer.querySelectorAll("line[data-from]").forEach(updateLinkLine); });
+  linksRaf = requestAnimationFrame(() => { linksRaf = null; linksLayer.querySelectorAll("g[data-from]").forEach(updateLinkLine); });
 }
 
 /* ==============================
@@ -1246,8 +1403,9 @@ function createChecklist(x, y, title, checkItems, id, bg, border) {
       }, 280);
     }, { passive: true });
     grip.addEventListener("touchmove", e => {
+      e.stopPropagation();
       if (!dragging) { clearTimeout(longTm); return; }
-      e.stopPropagation(); e.preventDefault();
+      e.preventDefault();
       const touch = e.touches[0];
       const els = document.elementsFromPoint(touch.clientX, touch.clientY);
       const overRow = els.find(x2 => x2.classList && x2.classList.contains("checklist-item") && x2 !== row);
@@ -1257,6 +1415,7 @@ function createChecklist(x, y, title, checkItems, id, bg, border) {
       }
     }, { passive: false });
     grip.addEventListener("touchend", e => {
+      e.stopPropagation();
       clearTimeout(longTm);
       if (dragging) {
         const touch = e.changedTouches[0];
@@ -1479,11 +1638,19 @@ tap(exportPdfBtn, async () => {
   ctx.fillStyle = document.body.classList.contains("dark") ? "#1e1e1e" : "#ffffff";
   ctx.fillRect(0,0,contentW,contentH);
 
-  ctx.strokeStyle = "#9b9bdc"; ctx.lineWidth = 2;
-  linksLayer.querySelectorAll("line[data-from]").forEach(line => {
+  ctx.strokeStyle = "#9b9bdc"; ctx.fillStyle = "#9b9bdc"; ctx.lineWidth = 2;
+  linksLayer.querySelectorAll("g[data-from] line").forEach(line => {
     const x1=parseFloat(line.getAttribute("x1"))-mnX, y1=parseFloat(line.getAttribute("y1"))-mnY;
     const x2=parseFloat(line.getAttribute("x2"))-mnX, y2=parseFloat(line.getAttribute("y2"))-mnY;
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    const angle = Math.atan2(y2-y1, x2-x1);
+    const hl=9, hw=5.5;
+    const bx=x2-Math.cos(angle)*hl, by=y2-Math.sin(angle)*hl;
+    ctx.beginPath();
+    ctx.moveTo(x2,y2);
+    ctx.lineTo(bx+Math.cos(angle+Math.PI/2)*hw, by+Math.sin(angle+Math.PI/2)*hw);
+    ctx.lineTo(bx+Math.cos(angle-Math.PI/2)*hw, by+Math.sin(angle-Math.PI/2)*hw);
+    ctx.closePath(); ctx.fill();
   });
 
   for (const el of items) {
@@ -1588,7 +1755,6 @@ function wrapCanvasText(ctx,text,x,y,maxWidth,lineHeight) {
 /* ==============================
    INIT
 ================================*/
-if (!pageOrder.length) pageOrder = Object.keys(pages);
-if (!Object.keys(pages).length) { createPage(); } else { loadPage(orderedPages()[0]); }
+document.body.classList.add("no-project");
+renderProjectScreen();
 updateTransform();
-updateMinimap();
