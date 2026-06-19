@@ -565,22 +565,31 @@ function tap(el, fn) {
    DRAG GÉNÉRIQUE
 ================================*/
 function makeDraggable(el) {
-  let active=false, sx=0, sy=0, ex=0, ey=0;
+  let active=false, sx=0, sy=0, ex=0, ey=0, moved=false;
   el.addEventListener("touchstart", e => {
     if (e.touches.length !== 1) return;
     if (e.target.classList.contains("handle")||e.target.classList.contains("el-delete")) return;
-    active=true;
+    active=true; moved=false;
     sx=e.touches[0].clientX; sy=e.touches[0].clientY;
     ex=parseFloat(el.style.left)||0; ey=parseFloat(el.style.top)||0;
     e.stopPropagation();
   }, { passive: true });
   el.addEventListener("touchmove", e => {
     if (!active||e.touches.length!==1) return;
+    moved=true;
     el.style.left = (ex+(e.touches[0].clientX-sx)/scale)+"px";
     el.style.top  = (ey+(e.touches[0].clientY-sy)/scale)+"px";
+    // Repositionner le bouton calque pendant le drag
+    if (layerTarget === el) positionLayerBtn(el);
     e.stopPropagation();
   }, { passive: true });
-  el.addEventListener("touchend", () => { active=false; saveCurrentPage(); });
+  el.addEventListener("touchend", e => {
+    if (active && !moved && el.dataset.type !== "shape") {
+      // Tap simple sur texte/image → afficher bouton calque
+      showLayerBtn(el);
+    }
+    active=false; saveCurrentPage();
+  });
 }
 
 /* ==============================
@@ -727,15 +736,17 @@ function createShape(shape, x, y, color, w, h, rotation) {
 
 function selectShape(el) {
   if (selectedEl) selectedEl.classList.remove("selected");
-  selectedEl=el; el.classList.add("selected");
-  const rect=el.getBoundingClientRect();
-  colorPanel.style.top=Math.min(window.innerHeight-120,rect.bottom+10)+"px";
-  colorPanel.style.left=Math.max(70,Math.min(window.innerWidth-200,rect.left))+"px";
+  selectedEl = el; el.classList.add("selected");
+  const rect = el.getBoundingClientRect();
+  colorPanel.style.top  = Math.min(window.innerHeight - 120, rect.bottom + 10) + "px";
+  colorPanel.style.left = Math.max(70, Math.min(window.innerWidth - 200, rect.left)) + "px";
   colorPanel.classList.add("open");
+  showLayerBtn(el);
 }
 function hideColorPanel() {
   colorPanel.classList.remove("open");
-  if (selectedEl) { selectedEl.classList.remove("selected"); selectedEl=null; }
+  if (selectedEl) { selectedEl.classList.remove("selected"); selectedEl = null; }
+  hideLayerBtn();
 }
 
 document.querySelectorAll(".color-swatch").forEach(sw=>{
@@ -802,8 +813,8 @@ tap(toggleDark,  ()=>{ document.body.classList.toggle("dark"); updateMinimap(); 
 const minimapEl = document.createElement("div");
 minimapEl.id = "minimap";
 const mmCvs = document.createElement("canvas");
-mmCvs.width  = 320;
-mmCvs.height = 220;
+mmCvs.width  = 240;
+mmCvs.height = 160;
 const mmVP = document.createElement("div");
 mmVP.id = "minimapViewport";
 minimapEl.appendChild(mmCvs);
@@ -813,14 +824,14 @@ document.body.appendChild(minimapEl);
 const MM_W = 4000, MM_H = 3000;
 
 function getMMOrigin() {
-  const cx = (-offsetX) / scale + viewport.clientWidth  / 2 / scale;
-  const cy = (-offsetY) / scale + viewport.clientHeight / 2 / scale;
+  const cx = -offsetX / scale + viewport.clientWidth  / 2 / scale;
+  const cy = -offsetY / scale + viewport.clientHeight / 2 / scale;
   return { x: cx - MM_W / 2, y: cy - MM_H / 2 };
 }
 
 function updateMinimap() {
-  const ctx  = mmCvs.getContext("2d");
-  const mw   = mmCvs.width, mh = mmCvs.height;
+  const ctx = mmCvs.getContext("2d");
+  const mw  = mmCvs.width, mh = mmCvs.height;
   const dark = document.body.classList.contains("dark");
   ctx.clearRect(0, 0, mw, mh);
   ctx.fillStyle = dark ? "#1e1e1e" : "#f5f4f2";
@@ -830,86 +841,185 @@ function updateMinimap() {
   const sx = mw / MM_W, sy = mh / MM_H;
 
   [...canvas.children].forEach(el => {
-    const wx = (parseFloat(el.style.left)||0) - origin.x;
-    const wy = (parseFloat(el.style.top) ||0) - origin.y;
-    const ww = parseFloat(el.style.width) ||140;
-    const wh = parseFloat(el.style.height)||60;
-    const mx = wx*sx, my = wy*sy;
-    const mew = Math.max(4, ww*sx), meh = Math.max(3, wh*sy);
-    if (mx+mew<0||my+meh<0||mx>mw||my>mh) return;
+    // Lire position réelle depuis style (mis à jour par drag)
+    const wx = (parseFloat(el.style.left) || 0) - origin.x;
+    const wy = (parseFloat(el.style.top)  || 0) - origin.y;
+    // Dimensions : shape a width/height explicites, text/image peuvent être auto
+    const ww = parseFloat(el.style.width)  || el.offsetWidth  || 140;
+    const wh = parseFloat(el.style.height) || el.offsetHeight || 60;
+    const mx = wx * sx, my = wy * sy;
+    const mew = Math.max(4, ww * sx), meh = Math.max(3, wh * sy);
+    if (mx + mew < 0 || my + meh < 0 || mx > mw || my > mh) return;
 
-    const type=el.dataset.type, shape=el.dataset.shape;
+    const type = el.dataset.type, shape = el.dataset.shape;
     ctx.save();
 
-    if (type==="text") {
+    if (type === "text") {
       ctx.fillStyle   = dark ? "#2e2e2e" : "#ffffff";
       ctx.strokeStyle = dark ? "#444"    : "#e0e0e0";
-      ctx.lineWidth=1;
-      ctx.beginPath(); ctx.roundRect(mx,my,mew,meh,3); ctx.fill(); ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(mx, my, mew, meh, 3); ctx.fill(); ctx.stroke();
       ctx.fillStyle = dark ? "#666" : "#d0d0d0";
-      const lh=Math.max(2,meh*0.18), gap=lh*1.7;
-      for(let l=0; l*gap+lh<meh-4; l++){
-        const lw=(l===0?mew*0.7:mew*(0.4+Math.random()*0.35));
-        ctx.fillRect(mx+3, my+3+l*gap, Math.min(lw,mew-6), lh);
+      const lh = Math.max(2, meh * 0.18), gap = lh * 1.7;
+      for (let l = 0; l * gap + lh < meh - 4; l++) {
+        const lw = l === 0 ? mew * 0.7 : mew * (0.4 + Math.random() * 0.3);
+        ctx.fillRect(mx + 3, my + 3 + l * gap, Math.min(lw, mew - 6), lh);
       }
-    } else if (type==="image") {
+    } else if (type === "image") {
       ctx.fillStyle   = dark ? "#333" : "#e0e0e0";
       ctx.strokeStyle = dark ? "#444" : "#ccc";
-      ctx.lineWidth=1;
-      ctx.beginPath(); ctx.roundRect(mx,my,mew,meh,3); ctx.fill(); ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(mx, my, mew, meh, 3); ctx.fill(); ctx.stroke();
       ctx.fillStyle = dark ? "#555" : "#b0b0b0";
       ctx.beginPath();
-      ctx.arc(mx+mew/2, my+meh/2, Math.min(mew,meh)*0.22, 0, Math.PI*2);
+      ctx.arc(mx + mew / 2, my + meh / 2, Math.min(mew, meh) * 0.22, 0, Math.PI * 2);
       ctx.fill();
-    } else if (type==="shape") {
-      ctx.fillStyle = el.dataset.color||"#4A90D9";
+    } else if (type === "shape") {
+      ctx.fillStyle   = el.dataset.color || "#4A90D9";
       ctx.globalAlpha = 0.85;
-      if (shape==="circle") {
-        ctx.beginPath(); ctx.ellipse(mx+mew/2,my+meh/2,mew/2,meh/2,0,0,Math.PI*2); ctx.fill();
-      } else if (shape==="arrow") {
-        ctx.strokeStyle=ctx.fillStyle; ctx.lineWidth=Math.max(1.5,meh*0.15);
-        ctx.beginPath(); ctx.moveTo(mx,my+meh/2); ctx.lineTo(mx+mew*0.8,my+meh/2); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(mx+mew,my+meh/2); ctx.lineTo(mx+mew*0.7,my+meh*0.15); ctx.lineTo(mx+mew*0.7,my+meh*0.85); ctx.closePath(); ctx.fill();
+      if (shape === "circle") {
+        ctx.beginPath(); ctx.ellipse(mx + mew/2, my + meh/2, mew/2, meh/2, 0, 0, Math.PI*2); ctx.fill();
+      } else if (shape === "arrow") {
+        ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = Math.max(1.5, meh * 0.15);
+        ctx.beginPath(); ctx.moveTo(mx, my + meh/2); ctx.lineTo(mx + mew * 0.8, my + meh/2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(mx + mew, my + meh/2); ctx.lineTo(mx + mew*0.7, my + meh*0.15); ctx.lineTo(mx + mew*0.7, my + meh*0.85); ctx.closePath(); ctx.fill();
       } else {
-        ctx.beginPath(); ctx.roundRect(mx,my,mew,meh,2); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(mx, my, mew, meh, 2); ctx.fill();
       }
     }
     ctx.restore();
   });
 
   // Cadre viewport
-  const vw=viewport.clientWidth, vh=viewport.clientHeight;
-  const vpX = (-offsetX/scale - origin.x)*sx;
-  const vpY = (-offsetY/scale - origin.y)*sy;
-  const vpW = (vw/scale)*sx, vpH = (vh/scale)*sy;
-  mmVP.style.left  =(vpX/mw*100).toFixed(1)+"%";
-  mmVP.style.top   =(vpY/mh*100).toFixed(1)+"%";
-  mmVP.style.width =(vpW/mw*100).toFixed(1)+"%";
-  mmVP.style.height=(vpH/mh*100).toFixed(1)+"%";
+  const vpX = (-offsetX / scale - origin.x) * sx;
+  const vpY = (-offsetY / scale - origin.y) * sy;
+  const vpW = (viewport.clientWidth  / scale) * sx;
+  const vpH = (viewport.clientHeight / scale) * sy;
+  mmVP.style.left   = (vpX / mw * 100).toFixed(1) + "%";
+  mmVP.style.top    = (vpY / mh * 100).toFixed(1) + "%";
+  mmVP.style.width  = (vpW / mw * 100).toFixed(1) + "%";
+  mmVP.style.height = (vpH / mh * 100).toFixed(1) + "%";
 }
 
 // Clic minimap → naviguer
 minimapEl.addEventListener("click", e => {
-  const r=minimapEl.getBoundingClientRect();
-  const rx=(e.clientX-r.left)/r.width, ry=(e.clientY-r.top)/r.height;
-  const org=getMMOrigin();
-  const wx=org.x+rx*MM_W, wy=org.y+ry*MM_H;
-  offsetX=viewport.clientWidth/2  - wx*scale;
-  offsetY=viewport.clientHeight/2 - wy*scale;
+  const r = minimapEl.getBoundingClientRect();
+  const org = getMMOrigin();
+  const wx = org.x + (e.clientX - r.left) / r.width  * MM_W;
+  const wy = org.y + (e.clientY - r.top)  / r.height * MM_H;
+  offsetX = viewport.clientWidth  / 2 - wx * scale;
+  offsetY = viewport.clientHeight / 2 - wy * scale;
   updateTransform(); updateMinimap();
 });
 
-// MutationObserver pour re-render quand le canvas change
-let mmRaf=null;
-function scheduleMM(){ if(!mmRaf) mmRaf=requestAnimationFrame(()=>{mmRaf=null;updateMinimap();}); }
-new MutationObserver(scheduleMM).observe(canvas,{childList:true,subtree:true,attributes:true,attributeFilter:["style"]});
+// Observer les déplacements sur les enfants du canvas (subtree + style)
+let mmRaf = null;
+function scheduleMM() {
+  if (mmRaf) return;
+  mmRaf = requestAnimationFrame(() => { mmRaf = null; updateMinimap(); });
+}
+new MutationObserver(scheduleMM).observe(canvas, {
+  childList: true,
+  subtree: true,
+  attributes: true,
+  attributeFilter: ["style"]
+});
 
-// Hook updateTransform pour rafraîchir la minimap sur pan/zoom
-const _updateTransform = updateTransform;
+// Hook updateTransform pour rafraîchir sur pan/zoom
 function updateTransform() {
-  canvas.style.transform="translate("+offsetX+"px,"+offsetY+"px) scale("+scale+")";
+  canvas.style.transform = "translate(" + offsetX + "px," + offsetY + "px) scale(" + scale + ")";
   scheduleMM();
 }
+
+/* ==============================
+   CALQUES — monter/descendre un élément
+================================*/
+// Bouton calque flottant, apparaît sur l'élément sélectionné (forme/texte/image)
+const layerBtn = document.createElement("div");
+layerBtn.id = "layerBtn";
+layerBtn.innerHTML = `
+  <button id="layerUp"   title="Passer au-dessus">↑</button>
+  <button id="layerDown" title="Passer en-dessous">↓</button>
+`;
+document.body.appendChild(layerBtn);
+
+const layerStyle = document.createElement("style");
+layerStyle.textContent = `
+#layerBtn {
+  display: none;
+  position: fixed;
+  z-index: 600;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.13);
+  flex-direction: column;
+  overflow: hidden;
+}
+#layerBtn.visible { display: flex; }
+#layerBtn button {
+  width: 34px; height: 30px;
+  border: none; background: transparent;
+  font-size: 15px; cursor: pointer;
+  touch-action: manipulation;
+  color: #444;
+  transition: background 0.1s;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+#layerBtn button:active { background: #f0f0f0; }
+#layerBtn button:first-child { border-bottom: 1px solid #eee; }
+body.dark #layerBtn { background: #2a2a2a; border-color: #3a3a3a; }
+body.dark #layerBtn button { color: #ddd; }
+body.dark #layerBtn button:active { background: #333; }
+body.dark #layerBtn button:first-child { border-color: #3a3a3a; }
+`;
+document.head.appendChild(layerStyle);
+
+let layerTarget = null; // l'élément canvas actuellement ciblé
+
+function showLayerBtn(el) {
+  layerTarget = el;
+  positionLayerBtn(el);
+  layerBtn.classList.add("visible");
+}
+function hideLayerBtn() {
+  layerBtn.classList.remove("visible");
+  layerTarget = null;
+}
+function positionLayerBtn(el) {
+  const rect = el.getBoundingClientRect();
+  // Positionner à gauche de l'élément, centré verticalement
+  let left = rect.left - 42;
+  if (left < 68) left = rect.right + 6;
+  let top  = rect.top + rect.height / 2 - 30;
+  if (top < 8)   top  = 8;
+  if (top + 62 > window.innerHeight) top = window.innerHeight - 70;
+  layerBtn.style.left = left + "px";
+  layerBtn.style.top  = top  + "px";
+}
+
+function layerMove(el, dir) {
+  // dir = +1 (vers l'avant) ou -1 (vers l'arrière)
+  if (!el || !el.parentNode) return;
+  if (dir > 0) {
+    // Monter : déplacer après l'élément suivant
+    const next = el.nextElementSibling;
+    if (next) el.parentNode.insertBefore(next, el);
+  } else {
+    // Descendre : déplacer avant l'élément précédent
+    const prev = el.previousElementSibling;
+    if (prev) el.parentNode.insertBefore(el, prev);
+  }
+  saveCurrentPage();
+  scheduleMM();
+  if (layerTarget) positionLayerBtn(layerTarget);
+}
+
+document.getElementById("layerUp").addEventListener("click",   e => { e.stopPropagation(); layerMove(layerTarget, +1); });
+document.getElementById("layerDown").addEventListener("click", e => { e.stopPropagation(); layerMove(layerTarget, -1); });
+document.getElementById("layerUp").addEventListener("touchend",   e => { e.preventDefault(); e.stopPropagation(); layerMove(layerTarget, +1); }, { passive: false });
+document.getElementById("layerDown").addEventListener("touchend", e => { e.preventDefault(); e.stopPropagation(); layerMove(layerTarget, -1); }, { passive: false });
 
 /* ==============================
    INIT
