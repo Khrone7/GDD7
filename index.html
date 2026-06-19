@@ -8,15 +8,16 @@
   <meta name="apple-mobile-web-app-title" content="GDD">
   <meta name="theme-color" content="#ffffff">
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
 <div id="sidebar">
   <div id="toggleMenu">☰</div>
 
-  <div class="tool" id="addText">✏️</div>
+  <div class="tool" id="addText" title="Texte">✏️</div>
 
-  <div class="tool has-submenu" id="addShape">
+  <div class="tool has-submenu" id="addShape" title="Forme">
     ⬛
     <div class="submenu" id="shapeMenu">
       <div class="shape-opt" data-shape="rect">⬛ Rectangle</div>
@@ -27,9 +28,25 @@
     </div>
   </div>
 
-  <div class="tool" id="addImage">🖼️</div>
-  <div class="tool" id="newPage">📄</div>
-  <div class="tool" id="toggleDark">🌙</div>
+  <div class="tool" id="addImage" title="Image">🖼️</div>
+  <div class="tool" id="addChecklist" title="Checklist">☑️</div>
+
+  <div class="sidebar-divider"></div>
+
+  <div class="tool" id="selectMode" title="Sélectionner / grouper">🖱️</div>
+  <div class="tool" id="linkMode" title="Connecteur">🔗</div>
+  <div class="tool" id="tagMode" title="Étiquette">🏷️</div>
+
+  <div class="sidebar-divider"></div>
+
+  <div class="tool" id="undoBtn" title="Annuler">↩️</div>
+  <div class="tool" id="redoBtn" title="Rétablir">↪️</div>
+
+  <div class="sidebar-divider"></div>
+
+  <div class="tool" id="newPage" title="Nouvelle page">📄</div>
+  <div class="tool" id="exportPdf" title="Exporter en PDF">📤</div>
+  <div class="tool" id="toggleDark" title="Mode sombre">🌙</div>
 
   <div id="pageListWrap">
     <div id="pageListLabel">Pages</div>
@@ -38,7 +55,21 @@
 </div>
 
 <div id="viewport">
+  <svg id="linksLayer"></svg>
   <div id="canvas"></div>
+</div>
+
+<!-- Bandeau mode actif (sélection / connecteur / étiquette) -->
+<div id="modeBanner">
+  <span id="modeBannerText"></span>
+  <button id="modeBannerCancel">Annuler</button>
+</div>
+
+<!-- Barre d'action flottante quand sélection multiple active -->
+<div id="selectionBar">
+  <span id="selectionCount">0 sélectionné(s)</span>
+  <button id="groupBtn">Grouper</button>
+  <button id="ungroupBtn">Dégrouper</button>
 </div>
 
 <!-- Panneau couleur flottant -->
@@ -52,6 +83,23 @@
   <div class="color-swatch" data-color="#E8E8FF"></div>
   <div class="color-swatch" data-color="#1a1a1a"></div>
   <div class="color-swatch" data-color="#FFFFFF" style="border:1.5px solid #ccc"></div>
+</div>
+
+<!-- Panneau étiquette flottant -->
+<div id="tagPanel">
+  <input type="text" id="tagInput" placeholder="Texte de l'étiquette" maxlength="24">
+  <div class="tag-colors">
+    <div class="color-swatch tag-color" data-color="#E74C3C"></div>
+    <div class="color-swatch tag-color" data-color="#F39C12"></div>
+    <div class="color-swatch tag-color" data-color="#2ECC71"></div>
+    <div class="color-swatch tag-color" data-color="#4A90D9"></div>
+    <div class="color-swatch tag-color" data-color="#9B59B6"></div>
+    <div class="color-swatch tag-color" data-color="#888888"></div>
+  </div>
+  <div class="tag-actions">
+    <button id="tagRemove">Retirer l'étiquette</button>
+    <button id="tagDone">OK</button>
+  </div>
 </div>
 
 <input type="file" id="fileInput" accept="image/*" style="display:none">
