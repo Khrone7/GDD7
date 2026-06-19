@@ -13,6 +13,56 @@ body {
 }
 
 /* ==============================
+   ÉCRAN DE SÉLECTION DE PROJET
+================================*/
+#projectScreen {
+  display: none;
+  position: fixed; inset: 0; z-index: 1000;
+  background: #f5f4f2;
+  align-items: center; justify-content: center;
+  overflow-y: auto;
+}
+body.no-project #projectScreen { display: flex; }
+body.no-project #sidebar, body.no-project #viewport { visibility: hidden; }
+
+#projectScreenInner {
+  width: min(420px, 88vw);
+  padding: 32px 0;
+}
+#projectScreenInner h1 {
+  font-size: 19px; font-weight: 700; color: #222; margin: 0 0 18px;
+  text-align: center;
+}
+#projectList { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; max-height: 50vh; overflow-y: auto; }
+.project-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #fff; border: 1px solid #e8e8e8; border-radius: 12px;
+  padding: 14px 16px; cursor: pointer; touch-action: manipulation;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.project-row:active { background: #f7f7f7; }
+.project-row-name { font-size: 15px; font-weight: 600; color: #222; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-row-meta { font-size: 11.5px; color: #999; margin-top: 2px; }
+.project-row-del {
+  border: none; background: none; color: #ccc; font-size: 13px;
+  cursor: pointer; touch-action: manipulation; padding: 4px 8px; flex-shrink: 0;
+}
+.project-row-del:active { color: #e74c3c; }
+#newProjectBtn {
+  width: 100%; background: #1a1a1a; color: #fff; border: none;
+  border-radius: 12px; padding: 14px; font-size: 14.5px; font-weight: 600;
+  cursor: pointer; touch-action: manipulation; font-family: inherit;
+}
+#newProjectBtn:active { opacity: 0.8; }
+#projectScreenEmpty { text-align: center; color: #bbb; font-size: 13px; padding: 16px 0; }
+
+body.dark #projectScreen { background: #161616; }
+body.dark #projectScreenInner h1 { color: #eee; }
+body.dark .project-row { background: #1e1e1e; border-color: #2c2c2c; }
+body.dark .project-row:active { background: #252525; }
+body.dark .project-row-name { color: #eee; }
+
+/* ==============================
    SIDEBAR
 ================================*/
 #sidebar {
