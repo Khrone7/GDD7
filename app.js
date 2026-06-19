@@ -461,6 +461,7 @@ function refreshPageList() {
 tap(toggleMenu, () => {
   sidebar.classList.toggle("expanded");
   document.body.classList.toggle("sidebar-expanded");
+  updateMinimap();
 });
 
 /* ==============================
@@ -793,7 +794,122 @@ document.querySelectorAll(".shape-opt").forEach(opt=>{
 ================================*/
 tap(addTextBtn, ()=>{ const c=viewCenter(); createText(c.x-80,c.y-20); saveCurrentPage(); });
 tap(newPageBtn,  ()=>createPage());
-tap(toggleDark,  ()=>document.body.classList.toggle("dark"));
+tap(toggleDark,  ()=>{ document.body.classList.toggle("dark"); updateMinimap(); });
+
+/* ==============================
+   MINIMAP
+================================*/
+const minimapEl = document.createElement("div");
+minimapEl.id = "minimap";
+const mmCvs = document.createElement("canvas");
+mmCvs.width  = 320;
+mmCvs.height = 220;
+const mmVP = document.createElement("div");
+mmVP.id = "minimapViewport";
+minimapEl.appendChild(mmCvs);
+minimapEl.appendChild(mmVP);
+document.body.appendChild(minimapEl);
+
+const MM_W = 4000, MM_H = 3000;
+
+function getMMOrigin() {
+  const cx = (-offsetX) / scale + viewport.clientWidth  / 2 / scale;
+  const cy = (-offsetY) / scale + viewport.clientHeight / 2 / scale;
+  return { x: cx - MM_W / 2, y: cy - MM_H / 2 };
+}
+
+function updateMinimap() {
+  const ctx  = mmCvs.getContext("2d");
+  const mw   = mmCvs.width, mh = mmCvs.height;
+  const dark = document.body.classList.contains("dark");
+  ctx.clearRect(0, 0, mw, mh);
+  ctx.fillStyle = dark ? "#1e1e1e" : "#f5f4f2";
+  ctx.fillRect(0, 0, mw, mh);
+
+  const origin = getMMOrigin();
+  const sx = mw / MM_W, sy = mh / MM_H;
+
+  [...canvas.children].forEach(el => {
+    const wx = (parseFloat(el.style.left)||0) - origin.x;
+    const wy = (parseFloat(el.style.top) ||0) - origin.y;
+    const ww = parseFloat(el.style.width) ||140;
+    const wh = parseFloat(el.style.height)||60;
+    const mx = wx*sx, my = wy*sy;
+    const mew = Math.max(4, ww*sx), meh = Math.max(3, wh*sy);
+    if (mx+mew<0||my+meh<0||mx>mw||my>mh) return;
+
+    const type=el.dataset.type, shape=el.dataset.shape;
+    ctx.save();
+
+    if (type==="text") {
+      ctx.fillStyle   = dark ? "#2e2e2e" : "#ffffff";
+      ctx.strokeStyle = dark ? "#444"    : "#e0e0e0";
+      ctx.lineWidth=1;
+      ctx.beginPath(); ctx.roundRect(mx,my,mew,meh,3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = dark ? "#666" : "#d0d0d0";
+      const lh=Math.max(2,meh*0.18), gap=lh*1.7;
+      for(let l=0; l*gap+lh<meh-4; l++){
+        const lw=(l===0?mew*0.7:mew*(0.4+Math.random()*0.35));
+        ctx.fillRect(mx+3, my+3+l*gap, Math.min(lw,mew-6), lh);
+      }
+    } else if (type==="image") {
+      ctx.fillStyle   = dark ? "#333" : "#e0e0e0";
+      ctx.strokeStyle = dark ? "#444" : "#ccc";
+      ctx.lineWidth=1;
+      ctx.beginPath(); ctx.roundRect(mx,my,mew,meh,3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = dark ? "#555" : "#b0b0b0";
+      ctx.beginPath();
+      ctx.arc(mx+mew/2, my+meh/2, Math.min(mew,meh)*0.22, 0, Math.PI*2);
+      ctx.fill();
+    } else if (type==="shape") {
+      ctx.fillStyle = el.dataset.color||"#4A90D9";
+      ctx.globalAlpha = 0.85;
+      if (shape==="circle") {
+        ctx.beginPath(); ctx.ellipse(mx+mew/2,my+meh/2,mew/2,meh/2,0,0,Math.PI*2); ctx.fill();
+      } else if (shape==="arrow") {
+        ctx.strokeStyle=ctx.fillStyle; ctx.lineWidth=Math.max(1.5,meh*0.15);
+        ctx.beginPath(); ctx.moveTo(mx,my+meh/2); ctx.lineTo(mx+mew*0.8,my+meh/2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(mx+mew,my+meh/2); ctx.lineTo(mx+mew*0.7,my+meh*0.15); ctx.lineTo(mx+mew*0.7,my+meh*0.85); ctx.closePath(); ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.roundRect(mx,my,mew,meh,2); ctx.fill();
+      }
+    }
+    ctx.restore();
+  });
+
+  // Cadre viewport
+  const vw=viewport.clientWidth, vh=viewport.clientHeight;
+  const vpX = (-offsetX/scale - origin.x)*sx;
+  const vpY = (-offsetY/scale - origin.y)*sy;
+  const vpW = (vw/scale)*sx, vpH = (vh/scale)*sy;
+  mmVP.style.left  =(vpX/mw*100).toFixed(1)+"%";
+  mmVP.style.top   =(vpY/mh*100).toFixed(1)+"%";
+  mmVP.style.width =(vpW/mw*100).toFixed(1)+"%";
+  mmVP.style.height=(vpH/mh*100).toFixed(1)+"%";
+}
+
+// Clic minimap → naviguer
+minimapEl.addEventListener("click", e => {
+  const r=minimapEl.getBoundingClientRect();
+  const rx=(e.clientX-r.left)/r.width, ry=(e.clientY-r.top)/r.height;
+  const org=getMMOrigin();
+  const wx=org.x+rx*MM_W, wy=org.y+ry*MM_H;
+  offsetX=viewport.clientWidth/2  - wx*scale;
+  offsetY=viewport.clientHeight/2 - wy*scale;
+  updateTransform(); updateMinimap();
+});
+
+// MutationObserver pour re-render quand le canvas change
+let mmRaf=null;
+function scheduleMM(){ if(!mmRaf) mmRaf=requestAnimationFrame(()=>{mmRaf=null;updateMinimap();}); }
+new MutationObserver(scheduleMM).observe(canvas,{childList:true,subtree:true,attributes:true,attributeFilter:["style"]});
+
+// Hook updateTransform pour rafraîchir la minimap sur pan/zoom
+const _updateTransform = updateTransform;
+function updateTransform() {
+  canvas.style.transform="translate("+offsetX+"px,"+offsetY+"px) scale("+scale+")";
+  scheduleMM();
+}
 
 /* ==============================
    INIT
@@ -801,3 +917,4 @@ tap(toggleDark,  ()=>document.body.classList.toggle("dark"));
 if (!pageOrder.length) pageOrder=Object.keys(pages);
 if (!Object.keys(pages).length) { createPage(); } else { loadPage(orderedPages()[0]); }
 updateTransform();
+updateMinimap();
