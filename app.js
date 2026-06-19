@@ -1133,14 +1133,11 @@ function createImage(x, y, src, w, h, id) {
   addDeleteButton(wrapper); canvas.appendChild(wrapper); makeDraggable(wrapper);
   return wrapper;
 }
-// iOS Safari exige un déclenchement synchrone et direct pour input.click() :
-// on évite le helper tap() générique ici et on branche click + touchend séparément,
-// sans appeler preventDefault avant le .click() (sinon Safari bloque silencieusement l'ouverture de la galerie).
+// iOS Safari exige un déclenchement synchrone et direct pour input.click().
+// Un seul listener "click" suffit : sur mobile, un tap génère aussi un événement
+// click natif après le touchend, donc dupliquer sur touchend appelait .click() deux fois
+// et la deuxième ouverture annulait silencieusement le résultat de la première.
 addImageBtn.addEventListener("click", () => fileInput.click());
-addImageBtn.addEventListener("touchend", e => {
-  e.stopPropagation();
-  fileInput.click();
-}, { passive: true });
 fileInput.addEventListener("change", e => {
   const file=e.target.files&&e.target.files[0]; if(!file)return;
   const reader=new FileReader();
