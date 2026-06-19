@@ -373,11 +373,11 @@ body.dark #colorPanel { background: #1c1c1c; border-color: #333; }
   position: fixed;
   bottom: 16px;
   right: 16px;
-  width: 160px;
-  height: 110px;
+  width: 120px;
+  height: 82px;
   background: #fff;
   border: 1px solid #ddd;
-  border-radius: 12px;
+  border-radius: 10px;
   box-shadow: 0 4px 18px rgba(0,0,0,0.13);
   overflow: hidden;
   z-index: 400;
@@ -389,7 +389,7 @@ body.dark #colorPanel { background: #1c1c1c; border-color: #333; }
   width: 100%;
   height: 100%;
   display: block;
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
 /* Cadre viewport sur la minimap */
