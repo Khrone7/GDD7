@@ -16,37 +16,24 @@ body {
    SIDEBAR
 ================================*/
 #sidebar {
-  width: 64px;
-  height: 100dvh;
-  background: #ffffff;
-  border-right: 1px solid #ebebeb;
-  padding: 10px 8px;
-  position: fixed;
-  left: 0; top: 0;
-  z-index: 200;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  transition: width 0.2s ease;
-  overflow-y: auto;
-  overflow-x: visible;
-  touch-action: auto;
-  box-shadow: 2px 0 12px rgba(0,0,0,0.04);
+  width: 64px; height: 100dvh; background: #ffffff;
+  border-right: 1px solid #ebebeb; padding: 10px 8px;
+  position: fixed; left: 0; top: 0; z-index: 200;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  transition: width 0.2s ease; overflow-y: auto; overflow-x: visible;
+  touch-action: auto; box-shadow: 2px 0 12px rgba(0,0,0,0.04);
 }
 #sidebar.expanded { width: 158px; align-items: flex-start; }
 
 #toggleMenu {
-  width: 42px; height: 42px;
-  display: flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
   font-size: 18px; cursor: pointer; border-radius: 10px;
   touch-action: manipulation; flex-shrink: 0; margin-bottom: 4px; color: #555;
 }
 #toggleMenu:active { background: #f0f0f0; }
 
 .tool {
-  width: 42px; height: 42px;
-  display: flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
   font-size: 20px; border-radius: 11px; cursor: pointer;
   touch-action: manipulation; position: relative; flex-shrink: 0;
   transition: background 0.12s; color: #444;
@@ -54,10 +41,7 @@ body {
 .tool:active { background: #f0f0f0; }
 .tool.active-mode { background: #1a1a1a; }
 .tool.active-mode > * { filter: invert(1) brightness(2); }
-
-#sidebar.expanded .tool {
-  width: 100%; justify-content: flex-start; padding: 0 10px; gap: 10px; font-size: 18px;
-}
+#sidebar.expanded .tool { width: 100%; justify-content: flex-start; padding: 0 10px; gap: 10px; font-size: 18px; }
 
 .submenu {
   display: none; position: absolute; left: 52px; top: 0;
@@ -66,18 +50,12 @@ body {
   min-width: 158px; flex-direction: column; gap: 1px;
 }
 .submenu.open { display: flex; }
-
-.shape-opt {
-  padding: 10px 13px; border-radius: 9px; font-size: 14px;
-  cursor: pointer; touch-action: manipulation; white-space: nowrap;
-  color: #333; transition: background 0.12s;
-}
+.shape-opt { padding: 10px 13px; border-radius: 9px; font-size: 14px; cursor: pointer; touch-action: manipulation; white-space: nowrap; color: #333; transition: background 0.12s; }
 .shape-opt:active { background: #f5f5f5; }
 
 .sidebar-divider { width: 28px; height: 1px; background: #eee; margin: 5px 0; flex-shrink: 0; }
 #sidebar.expanded .sidebar-divider { width: 100%; }
 
-/* Liste pages */
 #pageListWrap { display: none; flex-direction: column; gap: 4px; width: 100%; margin-top: 6px; padding: 0 2px; }
 #sidebar.expanded #pageListWrap { display: flex; }
 #pageListLabel { font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: #bbb; font-weight: 700; padding: 0 6px; margin-bottom: 2px; }
@@ -105,36 +83,21 @@ body {
 #viewport {
   position: fixed; left: 64px; top: 0;
   width: calc(100vw - 64px); height: 100dvh;
-  overflow: hidden; touch-action: none;
-  background: #f5f4f2;
+  overflow: hidden; touch-action: none; background: #f5f4f2;
   transition: left 0.2s ease, width 0.2s ease;
 }
 body.sidebar-expanded #viewport { left: 158px; width: calc(100vw - 158px); }
 
-#canvas {
-  width: 50000px; height: 50000px;
-  background-color: #f5f4f2;
-  position: relative; transform-origin: 0 0;
-}
-
-#linksLayer {
-  position: absolute; top: 0; left: 0;
-  width: 50000px; height: 50000px;
-  pointer-events: none;
-  transform-origin: 0 0;
-  z-index: 1;
-}
+#canvas { width: 50000px; height: 50000px; background-color: #f5f4f2; position: relative; transform-origin: 0 0; }
+#linksLayer { position: absolute; top: 0; left: 0; width: 50000px; height: 50000px; pointer-events: none; transform-origin: 0 0; z-index: 1; }
 
 /* ==============================
    ÉLÉMENTS CANVAS
 ================================*/
-.node, .shape-el, .img-wrapper, .checklist-el {
-  position: absolute; touch-action: none; user-select: none;
-}
+.node, .shape-el, .img-wrapper, .checklist-el { position: absolute; touch-action: none; user-select: none; }
 
 .node {
-  min-width: 110px; min-height: 40px;
-  padding: 10px 32px 10px 14px;
+  min-width: 110px; min-height: 40px; padding: 10px 32px 10px 14px;
   background: #ffffff; border: 1.5px solid #e8e8e8; border-radius: 14px;
   font-size: 16px; color: #1a1a1a;
   box-shadow: 0 2px 12px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.04);
@@ -142,124 +105,124 @@ body.sidebar-expanded #viewport { left: 158px; width: calc(100vw - 158px); }
 }
 .node[contenteditable="true"] { outline: 2px solid #1a1a1a; outline-offset: 1px; cursor: text; }
 
-.shape-el {
-  display: flex; align-items: center; justify-content: center;
-  cursor: grab; box-shadow: 0 3px 12px rgba(0,0,0,0.12);
-}
-.shape-el.selected, .node.selected, .img-wrapper.selected, .checklist-el.selected {
-  outline: 2px dashed rgba(0,0,0,0.3); outline-offset: 4px;
-}
-.shape-el.multi-selected, .node.multi-selected, .img-wrapper.multi-selected, .checklist-el.multi-selected {
-  outline: 3px solid #4A90D9; outline-offset: 3px;
-}
+.shape-el { display: flex; align-items: center; justify-content: center; cursor: grab; box-shadow: 0 3px 12px rgba(0,0,0,0.12); }
+.shape-el.selected, .node.selected, .img-wrapper.selected, .checklist-el.selected { outline: 2px dashed rgba(0,0,0,0.3); outline-offset: 4px; }
+.shape-el.multi-selected, .node.multi-selected, .img-wrapper.multi-selected, .checklist-el.multi-selected { outline: 3px solid #4A90D9; outline-offset: 3px; }
 
 .img-wrapper {
-  background: #fff; border: 1.5px solid #e8e8e8; border-radius: 14px;
-  padding: 5px; box-shadow: 0 2px 12px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.04);
-  cursor: grab;
+  background: #fff; border: 1.5px solid #e8e8e8; border-radius: 14px; padding: 5px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.04); cursor: grab;
 }
 .img-wrapper img { display: block; max-width: 280px; max-height: 280px; border-radius: 10px; pointer-events: none; user-select: none; }
 
 /* CHECKLIST */
 .checklist-el {
   background: #fffdf2; border: 1.5px solid #f0e6c0; border-radius: 14px;
-  padding: 10px 32px 10px 12px; min-width: 160px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
-  cursor: grab;
+  padding: 10px 32px 10px 12px; min-width: 190px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07); cursor: grab;
 }
 .checklist-title {
   font-size: 13px; font-weight: 700; color: #8a7a3a;
   text-transform: uppercase; letter-spacing: 0.04em;
-  margin-bottom: 6px; padding: 2px 0;
-  border: none; background: transparent; outline: none;
-  width: 100%; font-family: inherit;
+  margin-bottom: 6px; padding: 2px 0; border: none; background: transparent; outline: none;
+  width: 85%; font-family: inherit;
 }
-.checklist-items { display: flex; flex-direction: column; gap: 4px; }
-.checklist-item { display: flex; align-items: flex-start; gap: 7px; font-size: 14px; }
+.checklist-palette-btn {
+  position: absolute; top: 8px; right: 32px;
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 1.5px solid rgba(0,0,0,0.15); cursor: pointer; touch-action: manipulation;
+  background: conic-gradient(from 0deg, #e74c3c, #f39c12, #2ecc71, #4a90d9, #9b59b6, #e74c3c);
+}
+.checklist-items { display: flex; flex-direction: column; gap: 2px; }
+.checklist-item {
+  display: flex; align-items: flex-start; gap: 6px; font-size: 14px;
+  padding: 3px 2px; border-radius: 6px;
+}
+.checklist-item.drag-over-item { background: rgba(0,0,0,0.05); }
+.checklist-item.dragging-item { opacity: 0.35; }
+.ci-grip { cursor: grab; color: #ccc; font-size: 13px; touch-action: none; padding-top: 2px; flex-shrink: 0; }
 .checklist-item input[type="checkbox"] {
   width: 17px; height: 17px; margin: 2px 0 0 0; flex-shrink: 0;
   touch-action: manipulation; accent-color: #1a1a1a;
 }
-.checklist-item .ci-text {
-  flex: 1; outline: none; word-break: break-word; line-height: 1.4;
-  border-bottom: 1px solid transparent;
-}
-.checklist-item .ci-text:focus { border-bottom-color: #ddd; }
+.ci-body { flex: 1; min-width: 0; }
+.ci-text { outline: none; word-break: break-word; line-height: 1.4; border-bottom: 1px solid transparent; }
+.ci-text:focus { border-bottom-color: #ddd; }
 .checklist-item.done .ci-text { text-decoration: line-through; color: #aaa; }
-.checklist-add {
-  font-size: 13px; color: #aaa; margin-top: 6px; cursor: pointer; touch-action: manipulation;
+.ci-note {
+  outline: none; font-size: 12px; color: #999; margin-top: 1px;
+  border-bottom: 1px dashed transparent; word-break: break-word; line-height: 1.3;
 }
-.checklist-add:active { color: #666; }
-.ci-del {
-  border: none; background: none; color: #ccc; font-size: 12px; cursor: pointer;
-  touch-action: manipulation; flex-shrink: 0; padding: 0 2px;
+.ci-note:focus { border-bottom-color: #ccc; }
+.ci-note:empty::before { content: "note…"; color: #ccc; }
+.ci-actions { display: flex; flex-direction: column; gap: 1px; flex-shrink: 0; }
+.ci-del, .ci-sub-add {
+  border: none; background: none; color: #ccc; font-size: 11px; cursor: pointer;
+  touch-action: manipulation; padding: 0 2px; line-height: 1.4;
 }
 .ci-del:active { color: #e74c3c; }
+.ci-sub-add:active { color: #4A90D9; }
 
-/* ÉTIQUETTE sur un élément */
+.checklist-sub { margin-left: 23px; display: flex; flex-direction: column; gap: 1px; margin-top: 1px; }
+.checklist-sub .checklist-item { font-size: 12.5px; }
+.checklist-sub .checklist-item input[type="checkbox"] { width: 14px; height: 14px; }
+
+.checklist-add { font-size: 13px; color: #aaa; margin-top: 6px; cursor: pointer; touch-action: manipulation; }
+.checklist-add:active { color: #666; }
+
+/* ÉTIQUETTE */
 .elem-tag {
   position: absolute; top: -10px; left: 8px;
   font-size: 10.5px; font-weight: 700; color: #fff;
-  padding: 2px 8px; border-radius: 8px;
-  white-space: nowrap; z-index: 5;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
-  touch-action: manipulation;
+  padding: 2px 8px; border-radius: 8px; white-space: nowrap; z-index: 5;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18); touch-action: manipulation;
 }
 
-/* GROUPE — cadre englobant pointillé */
+/* GROUPE */
 .group-frame {
-  position: absolute;
-  border: 1.5px dashed #9b9bdc;
-  border-radius: 10px;
-  background: rgba(74,144,217,0.04);
-  touch-action: none;
-  cursor: grab;
+  position: absolute; border: 1.5px dashed #9b9bdc; border-radius: 10px;
+  background: rgba(74,144,217,0.04); touch-action: none; cursor: grab;
 }
 .group-label {
   position: absolute; top: -22px; left: 0;
   font-size: 11px; font-weight: 700; color: #6a6ad9;
   background: #fff; padding: 2px 8px; border-radius: 7px;
-  border: 1px solid #d8d8f5;
-  touch-action: manipulation;
-  white-space: nowrap;
+  border: 1px solid #d8d8f5; touch-action: manipulation; white-space: nowrap;
+  max-width: 200px; overflow: hidden; text-overflow: ellipsis;
 }
+.group-frame .handle-resize { bottom: -10px; right: -10px; }
 
 /* ==============================
    SUPPRIMER + POIGNÉES
 ================================*/
 .el-delete {
-  position: absolute; top: 5px; right: 5px;
-  width: 22px; height: 22px;
+  position: absolute; top: 5px; right: 5px; width: 22px; height: 22px;
   background: rgba(0,0,0,0.06); border: none; border-radius: 50%;
-  font-size: 11px; color: #888;
-  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: #888; display: flex; align-items: center; justify-content: center;
   cursor: pointer; touch-action: manipulation; z-index: 10; padding: 0;
 }
 .el-delete:active { background: #e74c3c; color: #fff; }
 
 .handle {
-  position: absolute; width: 20px; height: 20px;
-  background: #fff; border: 2px solid #444; border-radius: 50%;
-  touch-action: none; z-index: 10;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  position: absolute; width: 20px; height: 20px; background: #fff;
+  border: 2px solid #444; border-radius: 50%; touch-action: none; z-index: 10;
+  display: flex; align-items: center; justify-content: center; font-size: 11px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
 }
 .handle-resize { bottom: -10px; right: -10px; cursor: nwse-resize; }
 .handle-rotate { bottom: -10px; left: -10px; cursor: grab; }
 
 .link-anchor {
-  position: absolute; top: -8px; right: -8px;
-  width: 18px; height: 18px;
+  position: absolute; top: -8px; right: -8px; width: 18px; height: 18px;
   background: #4A90D9; border: 2px solid #fff; border-radius: 50%;
-  z-index: 15; touch-action: manipulation;
-  display: none;
+  z-index: 15; touch-action: manipulation; display: none;
 }
 body.mode-link .link-anchor { display: block; }
 
 /* ==============================
    PANNEAUX FLOTTANTS
 ================================*/
-#colorPanel, #tagPanel {
+#colorPanel, #tagPanel, #checklistStylePanel, #groupStylePanel {
   display: none; position: fixed; z-index: 500;
   background: #fff; border: 1px solid #e8e8e8; border-radius: 18px;
   padding: 10px 12px; box-shadow: 0 8px 28px rgba(0,0,0,0.11);
@@ -277,64 +240,89 @@ body.mode-link .link-anchor { display: block; }
 
 #tagPanel { flex-direction: column; gap: 10px; width: 220px; }
 #tagPanel.open { display: flex; }
-#tagInput {
-  border: 1px solid #ddd; border-radius: 9px; padding: 8px 10px;
-  font-size: 14px; font-family: inherit; outline: none; width: 100%;
-}
+#tagInput { border: 1px solid #ddd; border-radius: 9px; padding: 8px 10px; font-size: 14px; font-family: inherit; outline: none; width: 100%; }
 #tagInput:focus { border-color: #999; }
 .tag-colors { display: flex; gap: 7px; flex-wrap: wrap; }
 .tag-actions { display: flex; gap: 8px; justify-content: space-between; }
-.tag-actions button {
-  border: none; border-radius: 9px; padding: 7px 12px; font-size: 12.5px;
-  cursor: pointer; touch-action: manipulation; font-family: inherit;
-}
+.tag-actions button { border: none; border-radius: 9px; padding: 7px 12px; font-size: 12.5px; cursor: pointer; touch-action: manipulation; font-family: inherit; }
 #tagRemove { background: #f5f5f5; color: #999; }
 #tagRemove:active { background: #ffe5e5; color: #e74c3c; }
-#tagDone { background: #1a1a1a; color: #fff; font-weight: 600; }
+#tagDone, #checklistStyleDone, #groupStyleDone { background: #1a1a1a; color: #fff; font-weight: 600; }
+#groupRename { background: #f5f5f5; color: #555; }
+
+#checklistStylePanel, #groupStylePanel { flex-direction: column; gap: 10px; width: 210px; }
+#checklistStylePanel.open, #groupStylePanel.open { display: flex; }
+.cl-style-label { font-size: 11.5px; color: #999; font-weight: 600; }
+#checklistStylePanel button, #groupStylePanel > button { border: none; border-radius: 9px; padding: 7px 12px; font-size: 12.5px; cursor: pointer; touch-action: manipulation; font-family: inherit; align-self: flex-end; }
+.color-swatch.grp-selected, .color-swatch.cl-selected { outline: 2px solid #1a1a1a; outline-offset: 2px; }
 
 /* ==============================
    BANDEAU MODE ACTIF
 ================================*/
 #modeBanner {
-  display: none;
-  position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
-  z-index: 550;
-  background: #1a1a1a; color: #fff;
-  padding: 9px 10px 9px 16px;
-  border-radius: 24px;
-  font-size: 13px;
-  align-items: center; gap: 10px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  display: none; position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 550;
+  background: #1a1a1a; color: #fff; padding: 9px 10px 9px 16px; border-radius: 24px;
+  font-size: 13px; align-items: center; gap: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.2);
 }
 #modeBanner.visible { display: flex; }
-#modeBannerCancel {
-  background: rgba(255,255,255,0.15); color: #fff; border: none;
-  border-radius: 16px; padding: 6px 12px; font-size: 12px;
-  cursor: pointer; touch-action: manipulation; font-family: inherit;
-}
+#modeBannerCancel { background: rgba(255,255,255,0.15); color: #fff; border: none; border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor: pointer; touch-action: manipulation; font-family: inherit; }
 #modeBannerCancel:active { background: rgba(255,255,255,0.3); }
 
 /* ==============================
    BARRE SÉLECTION MULTIPLE
 ================================*/
 #selectionBar {
-  display: none;
-  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-  z-index: 550;
-  background: #fff; border: 1px solid #e5e5e5;
-  padding: 10px 14px; border-radius: 20px;
-  box-shadow: 0 8px 26px rgba(0,0,0,0.15);
-  align-items: center; gap: 12px;
-  font-size: 13px; color: #555;
+  display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 550;
+  background: #fff; border: 1px solid #e5e5e5; padding: 10px 14px; border-radius: 20px;
+  box-shadow: 0 8px 26px rgba(0,0,0,0.15); align-items: center; gap: 10px;
+  font-size: 13px; color: #555; flex-wrap: wrap; max-width: 92vw; justify-content: center;
 }
 #selectionBar.visible { display: flex; }
 #selectionBar button {
-  background: #1a1a1a; color: #fff; border: none;
-  border-radius: 14px; padding: 7px 14px; font-size: 12.5px;
-  cursor: pointer; touch-action: manipulation; font-family: inherit; font-weight: 600;
+  background: #1a1a1a; color: #fff; border: none; border-radius: 14px; padding: 7px 12px;
+  font-size: 12px; cursor: pointer; touch-action: manipulation; font-family: inherit; font-weight: 600;
+  white-space: nowrap;
 }
-#selectionBar button#ungroupBtn { background: #f0f0f0; color: #555; }
+#selectionBar button#removeFromGroupBtn, #selectionBar button#addToGroupBtn { background: #f0f0f0; color: #555; }
 #selectionBar button:active { opacity: 0.7; }
+
+/* ==============================
+   BARRE DE FORMATAGE TEXTE
+================================*/
+#textToolbar {
+  display: none; position: fixed; z-index: 1000;
+  background: #fff; border: 1px solid #e0e0e0; border-radius: 14px;
+  padding: 6px 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.13);
+  align-items: center; gap: 3px; flex-wrap: nowrap; overflow-x: auto;
+  max-width: calc(100vw - 80px); scrollbar-width: none; touch-action: manipulation;
+}
+#textToolbar.visible { display: flex; }
+#textToolbar button {
+  height: 32px; min-width: 32px; padding: 0 6px; border: none; border-radius: 8px;
+  background: transparent; cursor: pointer; font-size: 13px; font-family: inherit;
+  color: #333; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; touch-action: manipulation; transition: background 0.12s;
+}
+#textToolbar button:active { background: #f0f0f0; }
+#textToolbar button.active { background: #e8e8ff; }
+#textToolbar .tb-sep { width: 1px; height: 20px; background: #e5e5e5; margin: 0 2px; flex-shrink: 0; }
+#textToolbar #tbFontSize { font-size: 12px; color: #888; min-width: 24px; text-align: center; flex-shrink: 0; }
+#textToolbar .tb-color { width: 22px; height: 22px; min-width: 22px; border-radius: 50% !important; border: 2px solid rgba(0,0,0,0.08) !important; padding: 0; }
+
+/* ==============================
+   MINIMAP
+================================*/
+#minimap {
+  position: fixed; bottom: 16px; right: 16px; width: 130px; height: 90px;
+  background: #fff; border: 1px solid #ddd; border-radius: 10px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.13); overflow: hidden; z-index: 400;
+  cursor: pointer; touch-action: manipulation;
+}
+#minimap canvas { width: 100%; height: 100%; display: block; border-radius: 10px; }
+#minimapViewport {
+  position: absolute; border: 2px solid rgba(100,100,255,0.7); border-radius: 3px;
+  background: rgba(100,100,255,0.08); pointer-events: none; top: 0; left: 0;
+}
 
 /* ==============================
    MODE SOMBRE
@@ -358,8 +346,13 @@ body.dark .node { background: #272727; border-color: #363636; color: #eee; }
 body.dark .img-wrapper { background: #272727; border-color: #363636; }
 body.dark .checklist-el { background: #2a2812; border-color: #4a4525; }
 body.dark .checklist-title { color: #c9b96a; }
-body.dark #colorPanel, body.dark #tagPanel { background: #1c1c1c; border-color: #333; }
+body.dark #colorPanel, body.dark #tagPanel, body.dark #checklistStylePanel, body.dark #groupStylePanel { background: #1c1c1c; border-color: #333; }
 body.dark #tagInput { background: #262626; border-color: #3a3a3a; color: #eee; }
 body.dark #selectionBar { background: #1c1c1c; border-color: #333; color: #ccc; }
 body.dark .group-frame { border-color: #6a6ad9; background: rgba(106,106,217,0.07); }
 body.dark .group-label { background: #1c1c1c; border-color: #3a3a5a; color: #9b9bdc; }
+body.dark #textToolbar { background: #1c1c1c; border-color: #333; }
+body.dark #textToolbar button { color: #ddd; }
+body.dark #textToolbar button:active { background: #2a2a2a; }
+body.dark #textToolbar .tb-sep { background: #333; }
+body.dark #minimap { background: #1e1e1e; border-color: #333; box-shadow: 0 4px 18px rgba(0,0,0,0.35); }
