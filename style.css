@@ -35,7 +35,7 @@ body {
 }
 
 #sidebar.expanded {
-  width: 196px;
+  width: 158px;
   align-items: flex-start;
 }
 
@@ -195,8 +195,8 @@ body {
 }
 
 body.sidebar-expanded #viewport {
-  left: 196px;
-  width: calc(100vw - 196px);
+  left: 158px;
+  width: calc(100vw - 158px);
 }
 
 #canvas {
@@ -365,3 +365,45 @@ body.dark .img-wrapper {
 body.dark .el-delete { background: rgba(255,255,255,0.08); color: #777; }
 body.dark .handle { background: #272727; border-color: #aaa; }
 body.dark #colorPanel { background: #1c1c1c; border-color: #333; }
+
+/* ==============================
+   MINIMAP
+================================*/
+#minimap {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  width: 160px;
+  height: 110px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.13);
+  overflow: hidden;
+  z-index: 400;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+#minimap canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 12px;
+}
+
+/* Cadre viewport sur la minimap */
+#minimapViewport {
+  position: absolute;
+  border: 2px solid rgba(100,100,255,0.7);
+  border-radius: 3px;
+  background: rgba(100,100,255,0.08);
+  pointer-events: none;
+  top: 0; left: 0;
+}
+
+body.dark #minimap {
+  background: #1e1e1e;
+  border-color: #333;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+}
