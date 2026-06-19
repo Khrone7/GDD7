@@ -12,8 +12,22 @@
 </head>
 <body>
 
+<!-- Écran de démarrage : choix du projet -->
+<div id="projectScreen">
+  <div id="projectScreenInner">
+    <h1>📒 Mes projets de jeu</h1>
+    <div id="projectList"></div>
+    <button id="newProjectBtn">+ Nouveau projet</button>
+  </div>
+</div>
+
 <div id="sidebar">
   <div id="toggleMenu">☰</div>
+
+  <div class="tool" id="backToProjects" title="Mes projets">📒</div>
+  <div class="tool" id="saveNowBtn" title="Sauvegarder maintenant">💾</div>
+
+  <div class="sidebar-divider"></div>
 
   <div class="tool" id="addText" title="Texte">✏️</div>
 
@@ -77,6 +91,8 @@
 <div id="colorPanel">
   <div class="color-swatch" data-color="#4A90D9"></div>
   <div class="color-swatch" data-color="#E74C3C"></div>
+  <div class="color-swatch" data-color="#C0392B"></div>
+  <div class="color-swatch" data-color="#7B1E2B"></div>
   <div class="color-swatch" data-color="#2ECC71"></div>
   <div class="color-swatch" data-color="#F39C12"></div>
   <div class="color-swatch" data-color="#9B59B6"></div>
@@ -91,6 +107,8 @@
   <input type="text" id="tagInput" placeholder="Texte de l'étiquette" maxlength="24">
   <div class="tag-colors">
     <div class="color-swatch tag-color" data-color="#E74C3C"></div>
+    <div class="color-swatch tag-color" data-color="#C0392B"></div>
+    <div class="color-swatch tag-color" data-color="#7B1E2B"></div>
     <div class="color-swatch tag-color" data-color="#F39C12"></div>
     <div class="color-swatch tag-color" data-color="#2ECC71"></div>
     <div class="color-swatch tag-color" data-color="#4A90D9"></div>
@@ -111,6 +129,7 @@
     <div class="color-swatch cl-color" data-color="#eef6ff" data-border="#c5dffb" style="background:#eef6ff"></div>
     <div class="color-swatch cl-color" data-color="#f3fdf3" data-border="#c7ecc9" style="background:#f3fdf3"></div>
     <div class="color-swatch cl-color" data-color="#fff0f0" data-border="#f5c7c7" style="background:#fff0f0"></div>
+    <div class="color-swatch cl-color" data-color="#f7e9ea" data-border="#d9a8ad" style="background:#f7e9ea"></div>
     <div class="color-swatch cl-color" data-color="#f6f0fb" data-border="#ddc6f0" style="background:#f6f0fb"></div>
     <div class="color-swatch cl-color" data-color="#ffffff" data-border="#e0e0e0" style="background:#ffffff;border:1.5px solid #ddd"></div>
   </div>
@@ -124,6 +143,8 @@
     <div class="color-swatch grp-color" data-color="#9b9bdc"></div>
     <div class="color-swatch grp-color" data-color="#4A90D9"></div>
     <div class="color-swatch grp-color" data-color="#E74C3C"></div>
+    <div class="color-swatch grp-color" data-color="#C0392B"></div>
+    <div class="color-swatch grp-color" data-color="#7B1E2B"></div>
     <div class="color-swatch grp-color" data-color="#2ECC71"></div>
     <div class="color-swatch grp-color" data-color="#F39C12"></div>
     <div class="color-swatch grp-color" data-color="#888888"></div>
