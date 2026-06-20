@@ -131,6 +131,12 @@ body.no-project #sidebar, body.no-project #viewport { visibility: hidden; }
   box-shadow: 0 2px 14px rgba(212,175,55,0.35);
 }
 #newProjectBtn:active { opacity: 0.85; }
+#reloadSeedBtn {
+  width: 100%; background: rgba(40,33,23,0.7); color: #d4af37; border: 1px solid rgba(212,175,55,0.35);
+  border-radius: 12px; padding: 11px; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; touch-action: manipulation; font-family: inherit; margin-top: -4px;
+}
+#reloadSeedBtn:active { background: rgba(58,47,29,0.85); }
 #projectScreenEmpty { text-align: center; color: #9a8a65; font-size: 13px; padding: 16px 0; }
 
 
@@ -549,6 +555,7 @@ body.dark .handle { background: #1c1812; }
     <h1>Mes projets</h1>
     <div id="projectList"></div>
     <button id="newProjectBtn">+ Nouveau projet</button>
+    <button id="reloadSeedBtn">↻ Recharger l'exemple « Obscur »</button>
   </div>
 </div>
 
@@ -911,6 +918,22 @@ function backToProjectsScreen() {
 
 tap(newProjectBtn, () => createNewProject());
 tap(backToProjectsBtn, () => backToProjectsScreen());
+
+const reloadSeedBtn = document.getElementById("reloadSeedBtn");
+tap(reloadSeedBtn, () => {
+  if (typeof SEED_PROJECT === "undefined" || !SEED_PROJECT) return;
+  const id = "obscur_seed";
+  try {
+    localStorage.setItem(projectStorageKey(id), JSON.stringify(SEED_PROJECT));
+    const list = loadProjectsList();
+    if (!list.some(p => p.id === id)) {
+      list.push({ id, name: "Obscur — Reign of the Darkness", updatedAt: Date.now() });
+    }
+    saveProjectsList(list);
+    localStorage.setItem("gdd_seed_obscur_v", "3");
+  } catch(e) {}
+  openProject(id);
+});
 tap(saveNowBtn, () => {
   saveCurrentPage(false);
   saveNowBtn.textContent = "✅";
@@ -1096,9 +1119,9 @@ function loadPage(name) {
   exitAllModes();
   if (!pages[name]) pages[name] = { items: [], links: [], groups: [] };
   const data = pages[name];
-  (data.items||[]).forEach(d => restoreElement(d));
-  (data.groups||[]).forEach(g => restoreGroup(g));
-  (data.links||[]).forEach(l => drawLink(l.from, l.to));
+  (data.items||[]).forEach(d => { try { restoreElement(d); } catch(e) { console.warn("item skip", e); } });
+  (data.groups||[]).forEach(g => { try { restoreGroup(g); } catch(e) {} });
+  (data.links||[]).forEach(l => { try { drawLink(l.from, l.to); } catch(e) {} });
   refreshPageList();
   savePages();
   undoStack = [JSON.stringify(serializeCanvas())];
