@@ -557,7 +557,7 @@ body.dark .handle { background: #1c1812; }
     <div id="projectList"></div>
     <button id="newProjectBtn">+ Nouveau projet</button>
     <button id="reloadSeedBtn">↻ Recharger l'exemple « Obscur »</button>
-    <div id="versionTag">v7 · build test</div>
+    <div id="versionTag">v8 · diagnostic</div>
   </div>
 </div>
 
@@ -615,6 +615,8 @@ body.dark .handle { background: #1c1812; }
 <div id="pageListWrap" style="display:none">
   <div id="pageListLabel">Pages</div>
 </div>
+
+<div id="diagBox" style="display:none;position:fixed;top:8px;left:8px;right:8px;z-index:99999;background:#000;color:#0f0;font:11px monospace;padding:8px;border-radius:8px;white-space:pre-wrap;"></div>
 
 <div id="viewport">
   <svg id="linksLayer"></svg>
@@ -894,9 +896,23 @@ function renderProjectScreen() {
 function openProject(id) {
   currentProjectId = id;
   let data = { pages: {}, order: [] };
-  try { data = JSON.parse(localStorage.getItem(projectStorageKey(id))) || data; } catch(e) {}
+  let rawLen = 0, parseErr = "";
+  try {
+    const raw = localStorage.getItem(projectStorageKey(id));
+    rawLen = raw ? raw.length : 0;
+    data = JSON.parse(raw) || data;
+  } catch(e) { parseErr = e.message; }
   pages = data.pages || {};
   pageOrder = data.order || [];
+  try {
+    const dbg = document.getElementById("diagBox");
+    if (dbg) {
+      dbg.style.display = "block";
+      dbg.textContent = "open:" + id + " | rawLen:" + rawLen +
+        " | pages:" + Object.keys(pages).join(",") +
+        (parseErr ? " | PARSE_ERR:" + parseErr : "");
+    }
+  } catch(e) {}
   document.body.classList.remove("no-project");
   if (!Object.keys(pages).length) { createPage(); } else { loadPage((pageOrder.length?pageOrder:Object.keys(pages))[0]); }
 }
@@ -1121,9 +1137,19 @@ function loadPage(name) {
   exitAllModes();
   if (!pages[name]) pages[name] = { items: [], links: [], groups: [] };
   const data = pages[name];
-  (data.items||[]).forEach(d => { try { restoreElement(d); } catch(e) { console.warn("item skip", e); } });
+  let okCount = 0, errMsg = "";
+  (data.items||[]).forEach(d => { try { restoreElement(d); okCount++; } catch(e) { errMsg = e.message; } });
   (data.groups||[]).forEach(g => { try { restoreGroup(g); } catch(e) {} });
   (data.links||[]).forEach(l => { try { drawLink(l.from, l.to); } catch(e) {} });
+  // DIAGNOSTIC TEMPORAIRE
+  try {
+    const dbg = document.getElementById("diagBox");
+    if (dbg) {
+      dbg.textContent = "items def:" + (data.items ? data.items.length : "null") +
+        " | créés:" + okCount + (errMsg ? " | ERR:" + errMsg : "");
+      dbg.style.display = "block";
+    }
+  } catch(e) {}
   refreshPageList();
   savePages();
   undoStack = [JSON.stringify(serializeCanvas())];
