@@ -503,6 +503,11 @@ tap(toggleMenu, () => {
   document.body.classList.toggle("sidebar-expanded");
   scheduleMM();
 });
+const sidebarOverlay = document.getElementById("sidebarOverlay");
+tap(sidebarOverlay, () => {
+  sidebar.classList.remove("expanded");
+  document.body.classList.remove("sidebar-expanded");
+});
 
 /* ==============================
    CANVAS — PAN + PINCH + DOUBLE TAP
@@ -593,7 +598,7 @@ function viewCenter() {
 function handleBackgroundTap() {
   if (activeMode === "link" && linkFirstEl) { linkFirstEl.classList.remove("selected"); linkFirstEl = null; updateModeBanner(); return; }
   deselectAll();
-  hideColorPanel(); hideTagPanel(); hideChecklistStylePanel(); hideGroupStylePanel();
+  hideColorPanel(); hideTagPanel(); hideChecklistStylePanel(); hideGroupStylePanel(); hideLayerBtn();
 }
 
 /* ==============================
@@ -836,7 +841,7 @@ function openGroupStylePanel(frame) {
   document.querySelectorAll(".grp-color").forEach(sw => sw.classList.toggle("grp-selected", sw.dataset.color === frame.dataset.color));
   const rect = frame.getBoundingClientRect();
   groupStylePanel.style.top  = Math.min(window.innerHeight - 160, Math.max(8, rect.top)) + "px";
-  groupStylePanel.style.left = Math.max(70, Math.min(window.innerWidth - 230, rect.right + 10)) + "px";
+  groupStylePanel.style.left = Math.max(58, Math.min(window.innerWidth - 230, rect.right + 10)) + "px";
   groupStylePanel.classList.add("open");
 }
 function hideGroupStylePanel() { groupStylePanel.classList.remove("open"); groupStyleTarget = null; }
@@ -893,14 +898,18 @@ function makeDraggable(el) {
     moved = true;
     el.style.left = (ex+(e.touches[0].clientX-sx)/scale)+"px";
     el.style.top  = (ey+(e.touches[0].clientY-sy)/scale)+"px";
+    if (layerTarget === el) positionLayerBtn(el);
     scheduleLinksRedraw();
     e.stopPropagation();
   }, { passive: true });
 
   el.addEventListener("touchend", () => {
-    if (active && !moved && el.dataset.type === "shape") selectShape(el);
+    if (active && !moved) {
+      if (el.dataset.type === "shape") selectShape(el);
+      showLayerBtn(el);
+    }
     active = false;
-    if (moved) saveCurrentPage();
+    if (moved) { saveCurrentPage(); if (layerTarget === el) positionLayerBtn(el); }
   });
 }
 
@@ -922,7 +931,7 @@ function openTagPanel(el) {
   document.querySelectorAll(".tag-color").forEach(sw => sw.classList.toggle("tag-selected", sw.dataset.color === el.dataset.tagColor));
   const rect = el.getBoundingClientRect();
   tagPanel.style.top  = Math.min(window.innerHeight - 160, rect.bottom + 10) + "px";
-  tagPanel.style.left = Math.max(70, Math.min(window.innerWidth - 230, rect.left)) + "px";
+  tagPanel.style.left = Math.max(58, Math.min(window.innerWidth - 230, rect.left)) + "px";
   tagPanel.classList.add("open");
   tagInput.focus();
 }
@@ -1047,7 +1056,8 @@ function addDeleteButton(wrapper) {
   tap(btn, e => {
     e && e.stopPropagation && e.stopPropagation();
     const id = wrapper.dataset.id;
-    linksLayer.querySelectorAll('line[data-from="'+id+'"], line[data-to="'+id+'"]').forEach(l => l.remove());
+    linksLayer.querySelectorAll('g[data-from="'+id+'"], g[data-to="'+id+'"]').forEach(l => l.remove());
+    if (layerTarget === wrapper) hideLayerBtn();
     canvas.querySelectorAll(".group-frame").forEach(g => {
       const members = (g.dataset.members||"").split(",").filter(Boolean).filter(m => m !== id);
       g.dataset.members = members.join(",");
@@ -1065,6 +1075,45 @@ function deselectAll() {
   if (selectedEl) { selectedEl.classList.remove("selected"); selectedEl = null; }
   hideColorPanel();
 }
+
+/* ==============================
+   CALQUES — bouton flottant monter/descendre
+================================*/
+const layerBtn = document.createElement("div");
+layerBtn.id = "layerBtn";
+layerBtn.innerHTML = `
+  <button id="layerUp" title="Passer au-dessus">↑</button>
+  <button id="layerDown" title="Passer en-dessous">↓</button>
+`;
+document.body.appendChild(layerBtn);
+let layerTarget = null;
+
+function showLayerBtn(el) {
+  layerTarget = el;
+  positionLayerBtn(el);
+  layerBtn.classList.add("visible");
+}
+function hideLayerBtn() { layerBtn.classList.remove("visible"); layerTarget = null; }
+function positionLayerBtn(el) {
+  const rect = el.getBoundingClientRect();
+  let left = rect.left - 42;
+  if (left < 58) left = rect.right + 6;
+  let top = rect.top + rect.height/2 - 30;
+  if (top < 8) top = 8;
+  if (top + 62 > window.innerHeight) top = window.innerHeight - 70;
+  layerBtn.style.left = left + "px";
+  layerBtn.style.top  = top + "px";
+}
+function layerMove(el, dir) {
+  if (!el || !el.parentNode) return;
+  if (dir > 0) { const next = el.nextElementSibling; if (next) el.parentNode.insertBefore(next, el); }
+  else { const prev = el.previousElementSibling; if (prev) el.parentNode.insertBefore(el, prev); }
+  saveCurrentPage();
+  scheduleMM();
+  if (layerTarget) positionLayerBtn(layerTarget);
+}
+tap(document.getElementById("layerUp"),   () => layerMove(layerTarget, +1));
+tap(document.getElementById("layerDown"), () => layerMove(layerTarget, -1));
 
 /* ==============================
    BARRE DE FORMATAGE TEXTE
@@ -1103,7 +1152,7 @@ function positionTextToolbar(el) {
   let left = rect.left;
   const maxLeft = window.innerWidth - textToolbar.offsetWidth - 8;
   if (left > maxLeft) left = maxLeft;
-  if (left < 68) left = 68;
+  if (left < 58) left = 58;
   textToolbar.style.top  = top + "px";
   textToolbar.style.left = left + "px";
 }
@@ -1262,7 +1311,7 @@ function selectShape(el) {
   selectedEl = el; el.classList.add("selected");
   const rect = el.getBoundingClientRect();
   colorPanel.style.top  = Math.min(window.innerHeight - 120, rect.bottom + 10) + "px";
-  colorPanel.style.left = Math.max(70, Math.min(window.innerWidth - 200, rect.left)) + "px";
+  colorPanel.style.left = Math.max(58, Math.min(window.innerWidth - 200, rect.left)) + "px";
   colorPanel.classList.add("open");
 }
 function hideColorPanel() { colorPanel.classList.remove("open"); }
@@ -1458,7 +1507,7 @@ function openChecklistStylePanel(el) {
   document.querySelectorAll(".cl-color").forEach(sw => sw.classList.toggle("cl-selected", sw.dataset.color === el.dataset.bg));
   const rect = el.getBoundingClientRect();
   checklistStylePanel.style.top  = Math.min(window.innerHeight - 160, rect.bottom + 8) + "px";
-  checklistStylePanel.style.left = Math.max(70, Math.min(window.innerWidth - 230, rect.left)) + "px";
+  checklistStylePanel.style.left = Math.max(58, Math.min(window.innerWidth - 230, rect.left)) + "px";
   checklistStylePanel.classList.add("open");
 }
 function hideChecklistStylePanel() { checklistStylePanel.classList.remove("open"); checklistStyleTarget = null; }
