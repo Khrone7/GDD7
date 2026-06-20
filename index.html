@@ -34,11 +34,42 @@ body {
 body.no-project #projectScreen { display: flex; }
 body.no-project #sidebar, body.no-project #viewport { visibility: hidden; }
 
-/* Image du personnage en fond plein écran */
+/* Image du personnage en fond plein écran — animée (Ken Burns) */
 #characterCanvas {
-  position: absolute; inset: 0; z-index: 1;
+  position: absolute; inset: -4%; z-index: 1;
   background-position: center; background-repeat: no-repeat; background-size: cover;
-  animation: charFloat 7s ease-in-out infinite;
+  animation: kenBurns 26s ease-in-out infinite;
+  transform-origin: 52% 58%;
+}
+/* Lueur dorée qui respire, calée sur la tête de flamme / l'étoile */
+#projectScreen .glow-pulse {
+  position: absolute; z-index: 2; pointer-events: none;
+  left: 30%; top: 56%; width: 38vw; height: 38vw; max-width: 520px; max-height: 520px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(255,205,90,0.22) 0%, rgba(255,180,60,0.08) 38%, transparent 66%);
+  mix-blend-mode: screen;
+  animation: glowBreath 5s ease-in-out infinite;
+}
+/* Voile de brume qui dérive lentement */
+#projectScreen .mist {
+  position: absolute; z-index: 2; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 30%, rgba(120,110,90,0.10), transparent 60%),
+    radial-gradient(ellipse 50% 35% at 80% 60%, rgba(110,100,85,0.08), transparent 60%);
+  animation: mistDrift 32s ease-in-out infinite alternate;
+}
+@keyframes kenBurns {
+  0%   { transform: scale(1.05) translate(0, 0); }
+  50%  { transform: scale(1.13) translate(-1.5%, -2%); }
+  100% { transform: scale(1.05) translate(0, 0); }
+}
+@keyframes glowBreath {
+  0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(1); }
+  50%      { opacity: 1;    transform: translate(-50%, -50%) scale(1.22); }
+}
+@keyframes mistDrift {
+  0%   { transform: translateX(0) translateY(0); opacity: 0.7; }
+  100% { transform: translateX(4%) translateY(-2%); opacity: 1; }
 }
 
 /* Voile sombre en bas pour la lisibilité du panneau */
@@ -102,10 +133,6 @@ body.no-project #sidebar, body.no-project #viewport { visibility: hidden; }
 #newProjectBtn:active { opacity: 0.85; }
 #projectScreenEmpty { text-align: center; color: #9a8a65; font-size: 13px; padding: 16px 0; }
 
-@keyframes charFloat {
-  0%, 100% { transform: scale(1.04) translateY(0); }
-  50% { transform: scale(1.04) translateY(-12px); }
-}
 
 @media (max-width: 560px) {
   #projectPanelFloat { max-height: 56vh; }
@@ -515,6 +542,8 @@ body.dark .handle { background: #1c1812; }
 <!-- Écran de démarrage : choix du projet -->
 <div id="projectScreen">
   <div id="characterCanvas"></div>
+  <div class="glow-pulse"></div>
+  <div class="mist"></div>
   <div id="projectParticles"></div>
   <div id="projectPanelFloat">
     <h1>Mes projets</h1>
@@ -784,16 +813,32 @@ function uidProject() { return "p" + Date.now().toString(36) + Math.random().toS
 /* Projet d'exemple pré-rempli (depuis le GDD "Obscur") — injecté une seule fois */
 function seedExampleProject() {
   try {
-    if (localStorage.getItem("gdd_seeded_obscur") === "1") return; // déjà fait (même si supprimé depuis)
     if (typeof SEED_PROJECT === "undefined" || !SEED_PROJECT) return;
     const id = "obscur_seed";
-    const list = loadProjectsList();
-    if (!list.some(p => p.id === id)) {
-      list.push({ id, name: "Obscur — Reign of the Darkness", updatedAt: Date.now() });
-      saveProjectsList(list);
+    const SEED_VERSION = "3"; // incrémenter pour forcer une réinjection du contenu
+    const doneVersion = localStorage.getItem("gdd_seed_obscur_v");
+
+    // Vérifier si la clé projet contient réellement des éléments
+    let existingValid = false;
+    try {
+      const raw = localStorage.getItem(projectStorageKey(id));
+      if (raw) {
+        const d = JSON.parse(raw);
+        const firstPage = d.pages && d.pages[(d.order && d.order[0]) || Object.keys(d.pages)[0]];
+        existingValid = firstPage && Array.isArray(firstPage.items) && firstPage.items.length > 0;
+      }
+    } catch(e) {}
+
+    // (Ré)injecter si jamais fait, si version différente, ou si le contenu actuel est vide
+    if (doneVersion !== SEED_VERSION || !existingValid) {
       localStorage.setItem(projectStorageKey(id), JSON.stringify(SEED_PROJECT));
+      const list = loadProjectsList();
+      if (!list.some(p => p.id === id)) {
+        list.push({ id, name: "Obscur — Reign of the Darkness", updatedAt: Date.now() });
+        saveProjectsList(list);
+      }
+      localStorage.setItem("gdd_seed_obscur_v", SEED_VERSION);
     }
-    localStorage.setItem("gdd_seeded_obscur", "1");
   } catch(e) {}
 }
 
