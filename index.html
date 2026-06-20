@@ -134,13 +134,42 @@ body.sidebar-expanded #sidebarOverlay { display: none; }
 
 .sidebar-divider { width: 24px; height: 1px; background: #d8d5d0; margin: 5px 0; flex-shrink: 0; }
 
-#pageListWrap { display: none; }
+#pageListWrap { display: none !important; }
 #pageListLabel { display: none; }
-#pageList { display: none; }
 
-.page-row { display: none; }
-.page-del { display: none; }
-.page-drag-handle { display: none; }
+/* Panneau flottant de sélection des pages */
+#pagePanel {
+  display: none; position: fixed; left: 56px; bottom: 16px; z-index: 560;
+  background: #fff; border: 1px solid #d8d5d0; border-radius: 16px;
+  padding: 12px; box-shadow: 0 8px 28px rgba(0,0,0,0.16);
+  width: 220px; max-height: 70vh; flex-direction: column; gap: 8px;
+}
+#pagePanel.open { display: flex; }
+#pagePanelHeader { font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: #9a8f7f; font-weight: 700; padding: 0 2px; }
+#pageList { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+
+.page-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 11px; border-radius: 10px; background: #f4f2ee;
+  border: 1px solid #e4e0da; cursor: pointer; touch-action: manipulation;
+  font-size: 13.5px; color: #2a2420; transition: background 0.12s;
+}
+.page-row:active { background: #ece9e3; }
+.page-row.active { background: #d4af37; color: #1a1408; border-color: #d4af37; font-weight: 600; }
+.page-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.page-del { background: none; border: none; color: #b0a499; font-size: 12px; cursor: pointer; padding: 2px 5px; touch-action: manipulation; line-height: 1; border-radius: 4px; flex-shrink: 0; }
+.page-del:active { color: #d4574a; }
+.page-row.active .page-del { color: rgba(26,20,8,0.45); }
+.page-drag-handle { cursor: grab; padding: 0 5px 0 0; color: #b0a499; font-size: 15px; touch-action: none; user-select: none; flex-shrink: 0; line-height: 1; }
+.page-row.drag-over { outline: 2px solid #d4af37; outline-offset: -2px; }
+.page-row.dragging { opacity: 0.4; }
+
+#newPageBtnPanel {
+  border: none; border-radius: 10px; padding: 10px; font-size: 13px; font-weight: 700;
+  background: linear-gradient(180deg, #d4af37, #b8902a); color: #1a1408;
+  cursor: pointer; touch-action: manipulation; font-family: inherit;
+}
+#newPageBtnPanel:active { opacity: 0.85; }
 
 /* ==============================
    VIEWPORT + CANVAS
@@ -518,14 +547,20 @@ body.dark .handle { background: #1c1812; }
 
   <div class="sidebar-divider"></div>
 
-  <div class="tool" id="newPage" title="Nouvelle page">📄</div>
+  <div class="tool" id="pagesBtn" title="Pages">📑</div>
   <div class="tool" id="exportPdf" title="Exporter en PDF">📤</div>
   <div class="tool" id="toggleDark" title="Mode sombre">🌙</div>
+</div>
 
-  <div id="pageListWrap">
-    <div id="pageListLabel">Pages</div>
-    <div id="pageList"></div>
-  </div>
+<!-- Panneau flottant : sélecteur de pages -->
+<div id="pagePanel">
+  <div id="pagePanelHeader">Pages</div>
+  <div id="pageList"></div>
+  <button id="newPageBtnPanel">+ Nouvelle page</button>
+</div>
+
+<div id="pageListWrap" style="display:none">
+  <div id="pageListLabel">Pages</div>
 </div>
 
 <div id="viewport">
@@ -632,7 +667,9 @@ const linkModeBtn      = document.getElementById("linkMode");
 const tagModeBtn       = document.getElementById("tagMode");
 const undoBtn          = document.getElementById("undoBtn");
 const redoBtn          = document.getElementById("redoBtn");
-const newPageBtn       = document.getElementById("newPage");
+const newPageBtn       = document.getElementById("newPageBtnPanel");
+const pagesBtn         = document.getElementById("pagesBtn");
+const pagePanel        = document.getElementById("pagePanel");
 const exportPdfBtn     = document.getElementById("exportPdf");
 const toggleDark       = document.getElementById("toggleDark");
 const fileInput        = document.getElementById("fileInput");
@@ -1031,8 +1068,8 @@ function refreshPageList() {
     del.className = "page-del";
     del.textContent = "✕";
 
-    label.addEventListener("click", () => loadPage(name));
-    label.addEventListener("touchend", e => { e.preventDefault(); loadPage(name); }, { passive: false });
+    label.addEventListener("click", () => { loadPage(name); pagePanel.classList.remove("open"); });
+    label.addEventListener("touchend", e => { e.preventDefault(); loadPage(name); pagePanel.classList.remove("open"); }, { passive: false });
 
     const startRename = e => {
       if (e) { e.preventDefault(); e.stopPropagation(); }
@@ -2166,13 +2203,12 @@ document.querySelectorAll(".shape-opt").forEach(opt=>{
    TEXTE / PAGES / DARK / UNDO-REDO
 ================================*/
 tap(addTextBtn, ()=>{ const c=viewCenter(); createText(c.x-80,c.y-20); saveCurrentPage(); });
-tap(newPageBtn,  ()=>createPage());
+tap(newPageBtn,  ()=>{ createPage(); });
+tap(pagesBtn, () => { pagePanel.classList.toggle("open"); });
 tap(toggleDark,  ()=>{
   document.body.classList.toggle("dark");
   const isDark = document.body.classList.contains("dark");
   try { localStorage.setItem("gdd_dark", isDark ? "1" : "0"); } catch(e){}
-  if (scene) scene.background = new THREE.Color(isDark ? 0x1e1b16 : 0xffffff);
-  if (scene && scene.fog) scene.fog.color = new THREE.Color(isDark ? 0x1e1b16 : 0xffffff);
   scheduleMM();
 });
 try { if (localStorage.getItem("gdd_dark") === "1") document.body.classList.add("dark"); } catch(e){}
@@ -2435,116 +2471,172 @@ updateTransform();
 let scene, camera, renderer, character, glowParticles;
 
 function initCharacter3D() {
-  const canvas = document.getElementById('characterCanvas');
-  if (!canvas || !window.THREE) return;
+  const canvasEl = document.getElementById('characterCanvas');
+  if (!canvasEl || !window.THREE) return;
 
-  const w = canvas.clientWidth || 280;
-  const h = canvas.clientHeight || 380;
+  const w = canvasEl.clientWidth || 280;
+  const h = canvasEl.clientHeight || 380;
 
   const isDark = document.body.classList.contains("dark");
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(isDark ? 0x1e1b16 : 0xffffff);
-  scene.fog = new THREE.Fog(isDark ? 0x1e1b16 : 0xffffff, 10, 20);
+  const bgColor = isDark ? 0x1a160f : 0x14110c; // fond sombre comme l'image, même en clair (le perso brille mieux)
 
-  camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 1000);
-  camera.position.set(0, 0, 4);
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(bgColor);
+  scene.fog = new THREE.Fog(bgColor, 6, 16);
+
+  camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
+  camera.position.set(0, 0.3, 6);
+  camera.lookAt(0, 0.2, 0);
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.setSize(w, h);
   renderer.setPixelRatio(window.devicePixelRatio);
-  canvas.appendChild(renderer.domElement);
+  canvasEl.appendChild(renderer.domElement);
 
-  // Lumière douce
-  const ambLight = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambLight);
-  
-  const dirLight = new THREE.DirectionalLight(0xffd700, 1.2);
-  dirLight.position.set(3, 3, 3);
-  scene.add(dirLight);
-
-  // Personnage principal : tête ronde lumineuse
-  const headGeom = new THREE.IcosahedronGeometry(0.6, 4);
-  const headMat = new THREE.MeshPhongMaterial({
-    color: 0xfffef0,
-    emissive: 0xffd700,
-    emissiveIntensity: 0.8,
-    shininess: 100
-  });
-  const head = new THREE.Mesh(headGeom, headMat);
-  head.position.set(0, 0.4, 0);
-  scene.add(head);
-
-  // Yeux
-  const eyeGeom = new THREE.SphereGeometry(0.1, 8, 8);
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1a1408 });
-  const eye1 = new THREE.Mesh(eyeGeom, eyeMat);
-  eye1.position.set(-0.15, 0.55, 0.5);
-  head.add(eye1);
-  
-  const eye2 = new THREE.Mesh(eyeGeom, eyeMat);
-  eye2.position.set(0.15, 0.55, 0.5);
-  head.add(eye2);
-
-  // Corps : cylindre + sphères aux extrémités (CapsuleGeometry n'existe pas en r128)
-  const bodyMat = new THREE.MeshPhongMaterial({ color: 0xd4a76a, shininess: 50 });
-  const body = new THREE.Group();
-  const bodyCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.8, 16), bodyMat);
-  body.add(bodyCyl);
-  const bodyTop = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), bodyMat);
-  bodyTop.position.y = 0.4; body.add(bodyTop);
-  const bodyBot = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), bodyMat);
-  bodyBot.position.y = -0.4; body.add(bodyBot);
-  body.position.set(0, -0.4, 0);
-  scene.add(body);
-
-  // Bras : cylindre simple
-  const armMat = new THREE.MeshPhongMaterial({ color: 0xd4a76a, shininess: 50 });
-  function makeArm(x, rotZ) {
-    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.6, 10), armMat);
-    arm.position.set(x, 0, 0);
-    arm.rotation.z = rotZ;
-    return arm;
-  }
-  const armL = makeArm(-0.45, Math.PI / 4);
-  const armR = makeArm(0.45, -Math.PI / 4);
-  scene.add(armL);
-  scene.add(armR);
+  // Lumières : ambiance sombre + lueur dorée venant de la tête
+  scene.add(new THREE.AmbientLight(0x40361f, 0.7));
+  const headLight = new THREE.PointLight(0xffd766, 2.2, 12);
+  headLight.position.set(0, 1.1, 0.5);
+  scene.add(headLight);
+  const rimLight = new THREE.DirectionalLight(0xffb74a, 0.6);
+  rimLight.position.set(-2, 1, 2);
+  scene.add(rimLight);
 
   character = new THREE.Group();
-  character.add(head);
-  character.add(body);
-  character.add(armL);
-  character.add(armR);
   scene.add(character);
 
-  // Particules dorées autour
-  const particleGeom = new THREE.BufferGeometry();
-  const particleCount = 40;
-  const positions = new Float32Array(particleCount * 3);
-  
-  for (let i = 0; i < particleCount; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.random() * Math.PI;
-    const r = 2 + Math.random() * 0.8;
-    positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-    positions[i * 3 + 1] = r * Math.cos(phi);
-    positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
-  }
-  
-  particleGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const particleMat = new THREE.PointsMaterial({
-    color: 0xffd700,
-    size: 0.1,
-    sizeAttenuation: true
+  // ---- CORPS : silhouette sombre, fine, façon petite créature ----
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x1c1710, roughness: 0.9, metalness: 0.1 });
+
+  // tronc (cône inversé légèrement bombé)
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.42, 1.0, 12), darkMat);
+  torso.position.y = -0.35;
+  character.add(torso);
+
+  // épaules
+  const shoulders = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 12), darkMat);
+  shoulders.position.y = 0.15; shoulders.scale.set(1.1, 0.7, 0.9);
+  character.add(shoulders);
+
+  // bras levé (comme s'il tendait la main vers la lumière)
+  const armUp = new THREE.Group();
+  const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.5, 8), darkMat);
+  upperArm.position.set(0.32, 0.05, 0.1); upperArm.rotation.z = -0.9;
+  armUp.add(upperArm);
+  const foreArm = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.45, 8), darkMat);
+  foreArm.position.set(0.6, 0.35, 0.15); foreArm.rotation.z = -0.3;
+  armUp.add(foreArm);
+  character.add(armUp);
+
+  // bras au repos
+  const armDown = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.7, 8), darkMat);
+  armDown.position.set(-0.34, -0.2, 0.05); armDown.rotation.z = 0.25;
+  character.add(armDown);
+
+  // petites jambes
+  const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.4, 8), darkMat);
+  legL.position.set(-0.15, -1.05, 0); character.add(legL);
+  const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.4, 8), darkMat);
+  legR.position.set(0.15, -1.05, 0); character.add(legR);
+
+  // ---- TÊTE LUMINEUSE : noyau + flammes de cristal dorées ----
+  const headGroup = new THREE.Group();
+  headGroup.position.y = 0.62;
+  character.add(headGroup);
+
+  // noyau brillant (cœur de la "flamme")
+  const coreMat = new THREE.MeshStandardMaterial({
+    color: 0xfff4d0, emissive: 0xffd766, emissiveIntensity: 1.0, roughness: 0.3, metalness: 0.2
   });
-  glowParticles = new THREE.Points(particleGeom, particleMat);
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.32, 20, 20), coreMat);
+  headGroup.add(core);
+
+  // halo translucide autour du noyau
+  const haloMat = new THREE.MeshBasicMaterial({ color: 0xffcb52, transparent: true, opacity: 0.18 });
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), haloMat);
+  headGroup.add(halo);
+
+  // flammes de cristal : cônes dorés émissifs pointant vers le haut/extérieur
+  const flameMat = new THREE.MeshStandardMaterial({
+    color: 0xffe08a, emissive: 0xffba38, emissiveIntensity: 0.9, roughness: 0.25, metalness: 0.3,
+    transparent: true, opacity: 0.92, flatShading: true
+  });
+  const flames = [];
+  const flameCount = 11;
+  for (let i = 0; i < flameCount; i++) {
+    const ang = (i / flameCount) * Math.PI * 2;
+    const tall = 0.4 + Math.random() * 0.45;
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.1, tall, 5), flameMat);
+    const radius = 0.22;
+    flame.position.set(Math.cos(ang) * radius, 0.25 + tall * 0.35, Math.sin(ang) * radius * 0.5);
+    // incliner vers l'extérieur, pointe vers le haut
+    flame.rotation.z = -Math.cos(ang) * 0.5;
+    flame.rotation.x = Math.sin(ang) * 0.3;
+    flame.userData.baseScale = 1;
+    flame.userData.phase = Math.random() * Math.PI * 2;
+    headGroup.add(flame);
+    flames.push(flame);
+  }
+  // une grande flamme centrale qui pointe droit
+  const mainFlame = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.95, 6), flameMat);
+  mainFlame.position.y = 0.6;
+  mainFlame.userData.phase = 0; mainFlame.userData.baseScale = 1;
+  headGroup.add(mainFlame);
+  flames.push(mainFlame);
+
+  // ---- YEUX noirs ronds ----
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x100c06 });
+  const eyeGeo = new THREE.SphereGeometry(0.07, 10, 10);
+  const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
+  eye1.position.set(-0.12, -0.02, 0.29); headGroup.add(eye1);
+  const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
+  eye2.position.set(0.12, -0.02, 0.29); headGroup.add(eye2);
+
+  // ---- ÉTINCELLES dorées flottantes ----
+  const sparkGeo = new THREE.BufferGeometry();
+  const sparkCount = 60;
+  const positions = new Float32Array(sparkCount * 3);
+  const sparkData = [];
+  for (let i = 0; i < sparkCount; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const rad = 0.6 + Math.random() * 1.6;
+    const yy = 0.2 + Math.random() * 1.6;
+    positions[i*3] = Math.cos(ang) * rad;
+    positions[i*3+1] = yy;
+    positions[i*3+2] = Math.sin(ang) * rad;
+    sparkData.push({ ang, rad, baseY: yy, speed: 0.2 + Math.random() * 0.5 });
+  }
+  sparkGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const sparkMat = new THREE.PointsMaterial({ color: 0xffd766, size: 0.06, sizeAttenuation: true, transparent: true, opacity: 0.9 });
+  glowParticles = new THREE.Points(sparkGeo, sparkMat);
   scene.add(glowParticles);
 
-  // Animation
+  // ---- ANIMATION ----
+  let t = 0;
   const animate = () => {
     requestAnimationFrame(animate);
-    character.rotation.y += 0.01;
-    glowParticles.rotation.y -= 0.005;
+    t += 0.016;
+    // léger balancement du perso plutôt qu'une rotation complète (plus naturel)
+    character.rotation.y = Math.sin(t * 0.5) * 0.5;
+    headGroup.position.y = 0.62 + Math.sin(t * 1.5) * 0.02;
+    // flammes qui vacillent
+    flames.forEach(f => {
+      const s = 1 + Math.sin(t * 4 + f.userData.phase) * 0.12;
+      f.scale.y = s;
+    });
+    halo.scale.setScalar(1 + Math.sin(t * 2) * 0.06);
+    headLight.intensity = 2.2 + Math.sin(t * 3) * 0.4;
+    // étincelles qui montent en spirale
+    const pos = glowParticles.geometry.attributes.position.array;
+    sparkData.forEach((sp, i) => {
+      sp.ang += 0.003 * sp.speed * 4;
+      let y = pos[i*3+1] + sp.speed * 0.004;
+      if (y > 2.0) y = 0.2;
+      pos[i*3] = Math.cos(sp.ang) * sp.rad;
+      pos[i*3+1] = y;
+      pos[i*3+2] = Math.sin(sp.ang) * sp.rad;
+    });
+    glowParticles.geometry.attributes.position.needsUpdate = true;
     renderer.render(scene, camera);
   };
   animate();
