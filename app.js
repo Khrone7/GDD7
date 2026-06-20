@@ -499,14 +499,8 @@ function refreshPageList() {
    SIDEBAR TOGGLE
 ================================*/
 tap(toggleMenu, () => {
-  sidebar.classList.toggle("expanded");
-  document.body.classList.toggle("sidebar-expanded");
+  // Sidebar n'est plus expansible en thème clair
   scheduleMM();
-});
-const sidebarOverlay = document.getElementById("sidebarOverlay");
-tap(sidebarOverlay, () => {
-  sidebar.classList.remove("expanded");
-  document.body.classList.remove("sidebar-expanded");
 });
 
 /* ==============================
@@ -1807,3 +1801,134 @@ function wrapCanvasText(ctx,text,x,y,maxWidth,lineHeight) {
 document.body.classList.add("no-project");
 renderProjectScreen();
 updateTransform();
+
+/* ==============================
+   PERSONNAGE 3D — Écran de projet
+================================*/
+let scene, camera, renderer, character, glowParticles;
+
+function initCharacter3D() {
+  const canvas = document.getElementById('characterCanvas');
+  if (!canvas || !window.THREE) return;
+
+  const w = canvas.clientWidth || 280;
+  const h = canvas.clientHeight || 380;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xffffff);
+  scene.fog = new THREE.Fog(0xffffff, 10, 20);
+
+  camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 1000);
+  camera.position.set(0, 0, 4);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setSize(w, h);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  canvas.appendChild(renderer.domElement);
+
+  // Lumière douce
+  const ambLight = new THREE.AmbientLight(0xffffff, 0.6);
+  scene.add(ambLight);
+  
+  const dirLight = new THREE.DirectionalLight(0xffd700, 1.2);
+  dirLight.position.set(3, 3, 3);
+  scene.add(dirLight);
+
+  // Personnage principal : tête ronde lumineuse
+  const headGeom = new THREE.IcosahedronGeometry(0.6, 4);
+  const headMat = new THREE.MeshPhongMaterial({
+    color: 0xfffef0,
+    emissive: 0xffd700,
+    emissiveIntensity: 0.8,
+    shininess: 100
+  });
+  const head = new THREE.Mesh(headGeom, headMat);
+  head.position.set(0, 0.4, 0);
+  scene.add(head);
+
+  // Yeux
+  const eyeGeom = new THREE.SphereGeometry(0.1, 8, 8);
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1a1408 });
+  const eye1 = new THREE.Mesh(eyeGeom, eyeMat);
+  eye1.position.set(-0.15, 0.55, 0.5);
+  head.add(eye1);
+  
+  const eye2 = new THREE.Mesh(eyeGeom, eyeMat);
+  eye2.position.set(0.15, 0.55, 0.5);
+  head.add(eye2);
+
+  // Corps simple : capsule
+  const bodyGeom = new THREE.CapsuleGeometry(0.35, 0.8, 4, 8);
+  const bodyMat = new THREE.MeshPhongMaterial({
+    color: 0xd4a76a,
+    shininess: 50
+  });
+  const body = new THREE.Mesh(bodyGeom, bodyMat);
+  body.position.set(0, -0.4, 0);
+  scene.add(body);
+
+  // Bras
+  const armGeom = new THREE.CapsuleGeometry(0.12, 0.6, 4, 6);
+  const armMat = new THREE.MeshPhongMaterial({
+    color: 0xd4a76a,
+    shininess: 50
+  });
+  
+  const armL = new THREE.Mesh(armGeom, armMat);
+  armL.position.set(-0.45, 0, 0);
+  armL.rotation.z = Math.PI / 4;
+  scene.add(armL);
+  
+  const armR = new THREE.Mesh(armGeom, armMat);
+  armR.position.set(0.45, 0, 0);
+  armR.rotation.z = -Math.PI / 4;
+  scene.add(armR);
+
+  character = new THREE.Group();
+  character.add(head);
+  character.add(body);
+  character.add(armL);
+  character.add(armR);
+  scene.add(character);
+
+  // Particules dorées autour
+  const particleGeom = new THREE.BufferGeometry();
+  const particleCount = 40;
+  const positions = new Float32Array(particleCount * 3);
+  
+  for (let i = 0; i < particleCount; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.random() * Math.PI;
+    const r = 2 + Math.random() * 0.8;
+    positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    positions[i * 3 + 1] = r * Math.cos(phi);
+    positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+  }
+  
+  particleGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const particleMat = new THREE.PointsMaterial({
+    color: 0xffd700,
+    size: 0.1,
+    sizeAttenuation: true
+  });
+  glowParticles = new THREE.Points(particleGeom, particleMat);
+  scene.add(glowParticles);
+
+  // Animation
+  const animate = () => {
+    requestAnimationFrame(animate);
+    character.rotation.y += 0.01;
+    glowParticles.rotation.y -= 0.005;
+    renderer.render(scene, camera);
+  };
+  animate();
+}
+
+// Initialiser au premier rendu du projectScreen
+const observer = new MutationObserver(mutations => {
+  if (document.body.classList.contains('no-project') && !renderer) {
+    setTimeout(() => initCharacter3D(), 50);
+  }
+});
+observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
